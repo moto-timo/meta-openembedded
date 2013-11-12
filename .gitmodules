@@ -1,0 +1,3 @@
+[submodule "meta-perl"]
+	path = meta-perl
+	url = https://github.com/moto-timo/meta-perl.git
