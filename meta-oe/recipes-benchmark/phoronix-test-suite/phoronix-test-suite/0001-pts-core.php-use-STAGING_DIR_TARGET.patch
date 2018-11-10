@@ -1,0 +1,58 @@
+From 80e09fd82f98061abffa087579162cb416be273c Mon Sep 17 00:00:00 2001
+From: Tim Orling <ticotimo@gmail.com>
+Date: Sat, 10 Nov 2018 10:42:09 -0800
+Subject: [PATCH] pts-core.php: use STAGING_DIR_TARGET
+
+For -native usage, we want phoronix-test-suite to
+download to STAGING_DIR_TARGET, rather than the
+default.
+
+Signed-off-by: Tim Orling <ticotimo@gmail.com>
+
+---
+ pts-core/pts-core.php | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/pts-core/pts-core.php b/pts-core/pts-core.php
+index af08b70..2f4b494 100644
+--- a/pts-core/pts-core.php
++++ b/pts-core/pts-core.php
+@@ -111,6 +111,8 @@ function pts_define($name, $value = null)
+ }
+ function pts_define_directories()
+ {
++	pts_define('STAGING_DIR_TARGET', getenv('STAGING_DIR_TARGET', true));
++
+ 	// User's home directory for storing results, module files, test installations, etc.
+ 	pts_define('PTS_CORE_PATH', PTS_PATH . 'pts-core/');
+ 	pts_define('PTS_IS_DAEMONIZED_SERVER_PROCESS', PTS_IS_CLIENT && is_writable('/var/lib/') && is_writable('/etc') ? true : false);
+@@ -122,15 +124,15 @@ function pts_define_directories()
+ 
+ 	if(PTS_IS_DAEMONIZED_SERVER_PROCESS)
+ 	{
+-		if(!is_dir('/var/cache/phoronix-test-suite/'))
++		if(!is_dir(STAGING_DIR_TARGET . '/var/cache/phoronix-test-suite/'))
+ 		{
+-			mkdir('/var/cache/phoronix-test-suite/');
++			mkdir(STAGING_DIR_TARGET . '/var/cache/phoronix-test-suite/');
+ 		}
+ 
+-		pts_define('PTS_USER_PATH', '/var/lib/phoronix-test-suite/');
++		pts_define('PTS_USER_PATH', STAGING_DIR_TARGET . '/var/lib/phoronix-test-suite/');
+ 		pts_define('PTS_CORE_STORAGE', PTS_USER_PATH . 'core.pt2so');
+-		pts_define('PTS_DOWNLOAD_CACHE_PATH', '/var/cache/phoronix-test-suite/download-cache/');
+-		pts_define('PTS_OPENBENCHMARKING_SCRATCH_PATH', '/var/cache/phoronix-test-suite/openbenchmarking.org/');
++		pts_define('PTS_DOWNLOAD_CACHE_PATH', STAGING_DIR_TARGET . '/var/cache/phoronix-test-suite/download-cache/');
++		pts_define('PTS_OPENBENCHMARKING_SCRATCH_PATH', STAGING_DIR_TARGET . '/var/cache/phoronix-test-suite/openbenchmarking.org/');
+ 		pts_define('PTS_TEST_PROFILE_PATH', PTS_USER_PATH . 'test-profiles/');
+ 		pts_define('PTS_TEST_SUITE_PATH', PTS_USER_PATH . 'test-suites/');
+ 	}
+@@ -172,7 +174,7 @@ function pts_define_directories()
+ 	}
+ 	else if(is_dir('/usr/share/'))
+ 	{
+-		pts_define('PTS_SHARE_PATH', '/usr/share/phoronix-test-suite/');
++		pts_define('PTS_SHARE_PATH', STAGING_DIR_TARGET . '/usr/share/phoronix-test-suite/');
+ 		if(is_writable('/usr/share') && !is_dir(PTS_SHARE_PATH))
+ 		{
+ 			mkdir(PTS_SHARE_PATH);
