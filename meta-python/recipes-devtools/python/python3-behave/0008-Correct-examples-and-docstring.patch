@@ -1,0 +1,41 @@
+From b944f1f569f0caf47b21f9a58dd4d89195bb91e9 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Thu, 14 Mar 2019 22:14:54 +0100
+Subject: [PATCH] Correct examples and docstring
+
+---
+ behave/contrib/scenario_autoretry.py | 2 +-
+ behave/formatter/base.py             | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/behave/contrib/scenario_autoretry.py b/behave/contrib/scenario_autoretry.py
+index 2b7f94f..2592d10 100644
+--- a/behave/contrib/scenario_autoretry.py
++++ b/behave/contrib/scenario_autoretry.py
+@@ -24,7 +24,7 @@ EXAMPLE:
+     from behave.contrib.scenario_autoretry import patch_scenario_with_autoretry
+ 
+     def before_feature(context, feature):
+-        for scenario in feature.scenarios:
++        for scenario in feature.walk_scenarios():
+             if "autoretry" in scenario.effective_tags:
+                 patch_scenario_with_autoretry(scenario, max_attempts=2)
+ 
+diff --git a/behave/formatter/base.py b/behave/formatter/base.py
+index a8b9f7c..7f59ad4 100644
+--- a/behave/formatter/base.py
++++ b/behave/formatter/base.py
+@@ -74,11 +74,12 @@ class Formatter(object):
+ 
+     Processing Logic (simplified, without ScenarioOutline and skip logic)::
+ 
++        # -- HINT: Rule processing is missing.
+         for feature in runner.features:
+             formatter = make_formatters(...)
+             formatter.uri(feature.filename)
+             formatter.feature(feature)
+-            for scenario in feature.scenarios:
++            for scenario in feature.walk_scenarios():
+                 formatter.scenario(scenario)
+                 for step in scenario.all_steps:
+                     formatter.step(step)

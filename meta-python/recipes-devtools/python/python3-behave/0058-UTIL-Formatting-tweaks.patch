@@ -1,0 +1,22 @@
+From cd87ecc1e01e04a5e4522320241c3f603bfd6131 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 13 Jul 2019 13:40:46 +0200
+Subject: [PATCH] UTIL: Formatting tweaks.
+
+---
+ bin/behave2cucumber_json.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/bin/behave2cucumber_json.py b/bin/behave2cucumber_json.py
+index 541061e..893a5ef 100755
+--- a/bin/behave2cucumber_json.py
++++ b/bin/behave2cucumber_json.py
+@@ -20,7 +20,7 @@ import os.path
+ try:
+     import behave2cucumber
+ except ImportError:
+-    print("REQUIRE: https://github.com/behalf-oss/behave2cucumber (not installed yet)")
++    print("REQUIRE: https://github.com/behalf-oss/behave2cucumber")
+     print("INSTALL: pip install behave2cucumber")
+     sys.exit(2)
+ 

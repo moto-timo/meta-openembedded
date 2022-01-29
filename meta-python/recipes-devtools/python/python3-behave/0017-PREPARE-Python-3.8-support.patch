@@ -1,0 +1,39 @@
+From 14fc678576d613e0f18e2cdb83e736148625e874 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 8 Jun 2019 20:39:42 +0200
+Subject: [PATCH] PREPARE: Python-3.8 support
+
+---
+ .travis.yml | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/.travis.yml b/.travis.yml
+index 7015b88..d8f2443 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -1,12 +1,14 @@
+ language: python
+ sudo: false
++dist: xenial   # required for Python >= 3.7
+ python:
+-  - "3.6"
++  - "3.7"
+   - "2.7"
++  - "3.6"
+   - "3.5"
+   - "pypy"
+   - "pypy3"
+-  - "3.7-dev"
++  - "3.8-dev"
+ 
+ # -- DISABLED:
+ #  - "nightly"
+@@ -19,7 +21,7 @@ python:
+ # -- TEST-BALLON: Check if Python 3.6 is actually Python 3.5.1 or newer
+ matrix:
+   allow_failures:
+-    - python: "3.7-dev"
++    - python: "3.8-dev"
+     - python: "nightly"
+ 
+ cache:

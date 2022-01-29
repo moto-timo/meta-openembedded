@@ -1,0 +1,741 @@
+From 3ac01a125cd55a67504a21e9d66d4f2f95cd5f30 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 9 Jan 2021 22:11:38 +0100
+Subject: [PATCH] FIX: Some regressions with Python 3.9
+
+* async-steps: Use more stable active-tags now.
+* JUnit XML related: Adapt to XML attribute ordering changes since Python 3.8.
+* Prepare active-tags usage for Python 3.10
+* Behave jsonschema: Add some extra elements (related to: gherkin v6 Rule).
+---
+ .gitignore                                    |  1 +
+ CHANGES.rst                                   |  2 +
+ behave/python_feature.py                      | 81 +++++++++++++++++++
+ etc/json/behave.json-schema                   | 28 ++++++-
+ .../features/async_dispatch.feature           |  7 +-
+ .../async_step/features/async_run.feature     |  7 +-
+ examples/async_step/features/environment.py   | 16 ++--
+ .../features/steps/_async_steps34.py          |  4 +-
+ .../features/steps/async_dispatch_steps.py    | 13 +--
+ .../async_step/features/steps/async_steps.py  |  6 +-
+ features/environment.py                       | 12 ++-
+ features/step.async_steps.feature             | 64 ++++-----------
+ issue.features/issue0330.feature              | 18 +++--
+ issue.features/issue0446.feature              | 12 ++-
+ issue.features/issue0457.feature              | 12 ++-
+ issue.features/issue0657.feature              | 11 +--
+ more.features/environment.py                  | 10 +--
+ more.features/run_examples.feature            |  9 +--
+ 18 files changed, 195 insertions(+), 118 deletions(-)
+ create mode 100644 behave/python_feature.py
+
+diff --git a/.gitignore b/.gitignore
+index 9c5c33d..8d7c28e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -25,3 +25,4 @@ tools/virtualenvs
+ .ropeproject
+ nosetests.xml
+ rerun.txt
++testrun*.json
+diff --git a/CHANGES.rst b/CHANGES.rst
+index 4e20bb8..a3398d8 100644
+--- a/CHANGES.rst
++++ b/CHANGES.rst
+@@ -38,6 +38,8 @@ CLARIFICATION:
+ 
+ FIXED:
+ 
++* FIXED: Some tests related to python3.9
++* FIXED: active-tag logic if multiple tags with same category exists.
+ * issue #772: ScenarioOutline.Examples without table (submitted by: The-QA-Geek)
+ * issue #755: Failures with Python 3.8 (submitted by: hroncok)
+ * issue #725: Scenario Outline description lines seem to be ignored (submitted by: nizwiz)
+diff --git a/behave/python_feature.py b/behave/python_feature.py
+new file mode 100644
+index 0000000..4e134de
+--- /dev/null
++++ b/behave/python_feature.py
+@@ -0,0 +1,81 @@
++# -*- coding: UTF-8 -*-
++"""
++Provides a knowledge database if some Python features are supported
++in the current python version.
++"""
++
++from __future__ import absolute_import
++import sys
++import six
++from behave.tag_matcher import bool_to_string
++
++
++# -----------------------------------------------------------------------------
++# CONSTANTS:
++# -----------------------------------------------------------------------------
++PYTHON_VERSION = sys.version_info[:2]
++
++
++# -----------------------------------------------------------------------------
++# CLASSES:
++# -----------------------------------------------------------------------------
++class PythonFeature(object):
++
++    @staticmethod
++    def has_asyncio_coroutine_decorator():
++        """Indicates if python supports ``@asyncio.coroutine`` decorator.
++
++        EXAMPLE::
++
++            import asyncio
++            @asyncio.coroutine
++            def async_waits_seconds(duration):
++                yield from asyncio.sleep(duration)
++
++        :returns: True, if this python version supports this feature.
++
++        .. since:: Python >= 3.4
++        .. deprecated:: Since Python 3.8 (use async-function instead)
++        """
++        # -- NOTE: @asyncio.coroutine is deprecated in py3.8, removed in py3.10
++        return (3, 4) <= PYTHON_VERSION < (3, 10)
++
++    @staticmethod
++    def has_async_function():
++        """Indicates if python supports async-functions / async-keyword.
++
++        EXAMPLE::
++
++            import asyncio
++            async def async_waits_seconds(duration):
++                yield from asyncio.sleep(duration)
++
++        :returns: True, if this python version supports this feature.
++        .. since:: Python >= 3.5
++        """
++        return (3, 5) <= PYTHON_VERSION
++
++    @classmethod
++    def has_coroutine(cls):
++        return cls.has_async_function() or cls.has_asyncio_coroutine_decorator()
++
++
++# -----------------------------------------------------------------------------
++# SUPPORTED: ACTIVE-TAGS
++# -----------------------------------------------------------------------------
++PYTHON_HAS_ASYNCIO_COROUTINE_DECORATOR = PythonFeature.has_asyncio_coroutine_decorator()
++PYTHON_HAS_ASYNC_FUNCTION = PythonFeature.has_async_function()
++PYTHON_HAS_COROUTINE = PythonFeature.has_coroutine()
++ACTIVE_TAG_VALUE_PROVIDER = {
++    "python2": bool_to_string(six.PY2),
++    "python3": bool_to_string(six.PY3),
++    "python.version": "%s.%s" % PYTHON_VERSION,
++    "os":      sys.platform.lower(),
++
++    # -- PYTHON FEATURE, like: @use.with_py.feature_asyncio.coroutine
++    "python_has_coroutine": bool_to_string(PYTHON_HAS_COROUTINE),
++    "python_has_asyncio.coroutine_decorator":
++        bool_to_string(PYTHON_HAS_ASYNCIO_COROUTINE_DECORATOR),
++    "python_has_async_function": bool_to_string(PYTHON_HAS_ASYNC_FUNCTION),
++    "python_has_async_keyword": bool_to_string(PYTHON_HAS_ASYNC_FUNCTION),
++}
+diff --git a/etc/json/behave.json-schema b/etc/json/behave.json-schema
+index 9cf3e62..110e240 100644
+--- a/etc/json/behave.json-schema
++++ b/etc/json/behave.json-schema
+@@ -28,10 +28,36 @@
+             "type": "object",
+             "anyOf": [
+                 { "$ref": "#/definitions/Background" },
++                { "$ref": "#/definitions/Rule" },
+                 { "$ref": "#/definitions/Scenario" },
+                 { "$ref": "#/definitions/ScenarioOutline" }
+             ]
+         },
++        "Rule": {
++            "type": "object",
++            "description": "Represents a Rule object.",
++            "properties": {
++                "name":     { "type": "string" },
++                "keyword":  { "type": "string" },
++                "location": { "type": "string" },
++                "status":   { "type": "string" },
++                "tags":     { "$ref": "#/definitions/Tags" },
++                "description": { "$ref": "#/definitions/MultiLineText" },
++                "elements": {
++                    "type": "array",
++                    "items": { "$ref": "#/definitions/RuleElement" }
++                }
++            },
++            "required": [ "name", "keyword", "location" ]
++        },
++        "RuleElement": {
++            "type": "object",
++            "anyOf": [
++                { "$ref": "#/definitions/Scenario" },
++                { "$ref": "#/definitions/ScenarioOutline" },
++                { "$ref": "#/definitions/Background" }
++            ]
++        },
+         "Background": {
+             "type": "object",
+             "properties": {
+@@ -169,4 +195,4 @@
+             "enum": [ "array", "boolean", "integer", "null", "number", "object", "string" ]
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/examples/async_step/features/async_dispatch.feature b/examples/async_step/features/async_dispatch.feature
+index 18e9869..e0eba1e 100644
+--- a/examples/async_step/features/async_dispatch.feature
++++ b/examples/async_step/features/async_dispatch.feature
+@@ -1,8 +1,5 @@
+-@use.with_python.version=3.4
+-@use.with_python.version=3.5
+-@use.with_python.version=3.6
+-@use.with_python.version=3.7
+-@use.with_python.version=3.8
++@use.with_python_has_async_function=true
++@use.with_python_has_asyncio.coroutine_decorator=true
+ Feature:
+   Scenario:
+     Given I dispatch an async-call with param "Alice"
+diff --git a/examples/async_step/features/async_run.feature b/examples/async_step/features/async_run.feature
+index 29b8fa7..8b6e555 100644
+--- a/examples/async_step/features/async_run.feature
++++ b/examples/async_step/features/async_run.feature
+@@ -1,8 +1,5 @@
+-@use.with_python.version=3.4
+-@use.with_python.version=3.5
+-@use.with_python.version=3.6
+-@use.with_python.version=3.7
+-@use.with_python.version=3.8
++@use.with_python_has_async_function=true
++@use.with_python_has_asyncio.coroutine_decorator=true
+ Feature:
+   Scenario:
+     Given an async-step waits 0.3 seconds
+diff --git a/examples/async_step/features/environment.py b/examples/async_step/features/environment.py
+index 02c4d92..3fa9604 100644
+--- a/examples/async_step/features/environment.py
++++ b/examples/async_step/features/environment.py
+@@ -2,7 +2,8 @@
+ 
+ from behave.tag_matcher import ActiveTagMatcher, setup_active_tag_values
+ from behave.api.runtime_constraint import require_min_python_version
+-import sys
++from behave import python_feature
++
+ 
+ # -----------------------------------------------------------------------------
+ # REQUIRE: python >= 3.4
+@@ -15,27 +16,24 @@ require_min_python_version("3.4")
+ # -----------------------------------------------------------------------------
+ # -- MATCHES ANY TAGS: @use.with_{category}={value}
+ # NOTE: active_tag_value_provider provides category values for active tags.
+-python_version = "%s.%s" % sys.version_info[:2]
+-active_tag_value_provider = {
+-    "python.version": python_version,
+-}
++active_tag_value_provider = python_feature.ACTIVE_TAG_VALUE_PROVIDER.copy()
+ active_tag_matcher = ActiveTagMatcher(active_tag_value_provider)
+ 
+ 
+ # -----------------------------------------------------------------------------
+ # HOOKS:
+ # -----------------------------------------------------------------------------
+-def before_all(context):
++def before_all(ctx):
+     # -- SETUP ACTIVE-TAG MATCHER (with userdata):
+-    setup_active_tag_values(active_tag_value_provider, context.config.userdata)
++    setup_active_tag_values(active_tag_value_provider, ctx.config.userdata)
+ 
+ 
+-def before_feature(context, feature):
++def before_feature(ctx, feature):
+     if active_tag_matcher.should_exclude_with(feature.tags):
+         feature.skip(reason=active_tag_matcher.exclude_reason)
+ 
+ 
+-def before_scenario(context, scenario):
++def before_scenario(ctx, scenario):
+     if active_tag_matcher.should_exclude_with(scenario.effective_tags):
+         scenario.skip(reason=active_tag_matcher.exclude_reason)
+ 
+diff --git a/examples/async_step/features/steps/_async_steps34.py b/examples/async_step/features/steps/_async_steps34.py
+index 556500f..fc4c8d1 100644
+--- a/examples/async_step/features/steps/_async_steps34.py
++++ b/examples/async_step/features/steps/_async_steps34.py
+@@ -1,5 +1,5 @@
+-# -- REQUIRES: Python >= 3.4 and Python < 3.8
+-# HINT: Decorator @asyncio.coroutine is prohibited in python 3.8
++# -- REQUIRES: Python >= 3.4 and Python < 3.10 (removed in: 3.10)
++# HINT: @asyncio.coroutine decorator is deprecated since python 3.8
+ # USE:  Async generator/coroutine instead.
+ 
+ from behave import step
+diff --git a/examples/async_step/features/steps/async_dispatch_steps.py b/examples/async_step/features/steps/async_dispatch_steps.py
+index 222e54d..def9616 100644
+--- a/examples/async_step/features/steps/async_dispatch_steps.py
++++ b/examples/async_step/features/steps/async_dispatch_steps.py
+@@ -1,8 +1,9 @@
+ # -*- coding: UTF-8 -*-
+ # REQUIRES: Python >= 3.4/3.5
+-import sys
++
+ from behave import given, then, step
+ from behave.api.async_step import use_or_create_async_context
++from behave.python_feature import PythonFeature
+ from hamcrest import assert_that, equal_to, empty
+ import asyncio
+ 
+@@ -10,13 +11,15 @@ import asyncio
+ # ---------------------------------------------------------------------------
+ # ASYNC EXAMPLE FUNCTION:
+ # ---------------------------------------------------------------------------
+-python_version = "%s.%s" % sys.version_info[:2]
+-if python_version >= "3.5":
++if PythonFeature.has_async_function():
++    # -- USE: async-function as coroutine-function
++    # SINCE: Python 3.5 (preferred)
+     async def async_func(param):
+         await asyncio.sleep(0.2)
+         return str(param).upper()
+-else:
+-    # -- HINT: Decorator @asyncio.coroutine is prohibited in python 3.8
++elif PythonFeature.has_asyncio_coroutine_decorator():
++    # -- USE: @asyncio.coroutine decorator
++    # SINCE: Python 3.4, deprecated since Python 3.8, removed in Python 3.10
+     @asyncio.coroutine
+     def async_func(param):
+         yield from asyncio.sleep(0.2)
+diff --git a/examples/async_step/features/steps/async_steps.py b/examples/async_step/features/steps/async_steps.py
+index dc03c72..33d2392 100644
+--- a/examples/async_step/features/steps/async_steps.py
++++ b/examples/async_step/features/steps/async_steps.py
+@@ -5,8 +5,8 @@
+ from __future__ import absolute_import
+ import sys
+ 
+-python_version = "%s.%s" % sys.version_info[:2]
+-if python_version >= "3.5":
++python_version = sys.version_info[:2]
++if python_version >= (3, 5):
+     import _async_steps35
+-elif python_version == "3.4":
++elif python_version == (3, 4):
+     import _async_steps34
+diff --git a/features/environment.py b/features/environment.py
+index 3769ee4..6faf4e2 100644
+--- a/features/environment.py
++++ b/features/environment.py
+@@ -4,22 +4,19 @@
+ from __future__ import absolute_import, print_function
+ from behave.tag_matcher import ActiveTagMatcher, setup_active_tag_values
+ from behave4cmd0.setup_command_shell import setup_command_shell_processors4behave
++from behave import python_feature
+ import platform
+ import sys
+-import six
++
+ 
+ # -- MATCHES ANY TAGS: @use.with_{category}={value}
+ # NOTE: active_tag_value_provider provides category values for active tags.
+-python_version = "%s.%s" % sys.version_info[:2]
+ active_tag_value_provider = {
+-    "python2": str(six.PY2).lower(),
+-    "python3": str(six.PY3).lower(),
+-    "python.version": python_version,
+     # -- python.implementation: cpython, pypy, jython, ironpython
+     "python.implementation": platform.python_implementation().lower(),
+     "pypy":    str("__pypy__" in sys.modules).lower(),
+-    "os":      sys.platform,
+ }
++active_tag_value_provider.update(python_feature.ACTIVE_TAG_VALUE_PROVIDER)
+ active_tag_matcher = ActiveTagMatcher(active_tag_value_provider)
+ 
+ 
+@@ -27,7 +24,7 @@ def print_active_tags_summary():
+     active_tag_data = active_tag_value_provider
+     print("ACTIVE-TAG SUMMARY:")
+     print("use.with_python.version=%s" % active_tag_data.get("python.version"))
+-    # print("use.with_os=%s" % active_tag_data.get("os"))
++    print("use.with_os=%s" % active_tag_data.get("os"))
+     print()
+ 
+ 
+@@ -53,6 +50,7 @@ def before_scenario(context, scenario):
+     if active_tag_matcher.should_exclude_with(scenario.effective_tags):
+         scenario.skip(reason=active_tag_matcher.exclude_reason)
+ 
++
+ # -----------------------------------------------------------------------------
+ # SPECIFIC FUNCTIONALITY:
+ # -----------------------------------------------------------------------------
+diff --git a/features/step.async_steps.feature b/features/step.async_steps.feature
+index 06709d9..5919397 100644
+--- a/features/step.async_steps.feature
++++ b/features/step.async_steps.feature
+@@ -1,4 +1,5 @@
+ @not.with_python2=true
++@use.with_python_has_coroutine=true
+ Feature: Async-Test Support (async-step, ...)
+ 
+   As a test writer and step provider
+@@ -16,11 +17,11 @@ Feature: Async-Test Support (async-step, ...)
+   .    * an async-function as coroutine using async/await keywords (Python 3.5)
+   .    * an async-function tagged with @asyncio.coroutine and using "yield from"
+   .
+-  .  # -- EXAMPLE CASE 1 (since Python 3.5):
++  .  # -- EXAMPLE CASE 1 (since Python 3.5; preferred):
+   .  async def coroutine1(duration):
+   .      await asyncio.sleep(duration)
+   .
+-  .  # -- EXAMPLE CASE 2 (since Python 3.4):
++  .  # -- EXAMPLE CASE 2 (since Python 3.4; deprecated since Python 3.8; removed in Python 3.10):
+   .  @asyncio.coroutine
+   .  def coroutine2(duration):
+   .      yield from asyncio.sleep(duration)
+@@ -30,12 +31,8 @@ Feature: Async-Test Support (async-step, ...)
+   .   The async-step can directly interact with other async-functions.
+ 
+ 
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
+-    Scenario: Use async-step with @async_run_until_complete (async)
++    @use.with_python_has_async_function=true
++    Scenario: Use async-step with @async_run_until_complete (async; requires: py.version >= 3.5)
+       Given a new working directory
+       And a file named "features/steps/async_steps35.py" with:
+         """
+@@ -63,13 +60,8 @@ Feature: Async-Test Support (async-step, ...)
+         """
+ 
+ 
+-    @use.with_python.version=3.4
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
+-    Scenario: Use async-step with @async_run_until_complete (@coroutine)
++    @use.with_python_has_asyncio.coroutine_decorator=true
++    Scenario: Use async-step with @async_run_until_complete (@asyncio.coroutine)
+       Given a new working directory
+       And a file named "features/steps/async_steps34.py" with:
+         """
+@@ -97,12 +89,8 @@ Feature: Async-Test Support (async-step, ...)
+              Given an async-step waits 0.3 seconds ... passed in 0.3
+         """
+ 
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
+-    Scenario: Use @async_run_until_complete(timeout=...) and TIMEOUT occurs (async)
++    @use.with_python_has_async_function=true
++    Scenario: Use @async_run_until_complete(timeout=...) and TIMEOUT occurs (async-function)
+       Given a new working directory
+       And a file named "features/steps/async_steps_timeout35.py" with:
+         """
+@@ -135,13 +123,9 @@ Feature: Async-Test Support (async-step, ...)
+         Assertion Failed: TIMEOUT-OCCURED: timeout=0.1
+         """
+ 
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
++    @use.with_python_has_async_function=true
+     @async_step_fails
+-    Scenario: Use @async_run_until_complete and async-step fails
++    Scenario: Use @async_run_until_complete and async-step fails (async-function)
+       Given a new working directory
+       And a file named "features/steps/async_steps_fails35.py" with:
+         """
+@@ -180,13 +164,9 @@ Feature: Async-Test Support (async-step, ...)
+         Assertion Failed: XFAIL in async-step
+         """
+ 
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
++    @use.with_python_has_async_function=true
+     @async_step_fails
+-    Scenario: Use @async_run_until_complete and async-step raises error
++    Scenario: Use @async_run_until_complete and async-step raises error (async-function)
+       Given a new working directory
+       And a file named "features/steps/async_steps_exception35.py" with:
+         """
+@@ -225,13 +205,8 @@ Feature: Async-Test Support (async-step, ...)
+         raise RuntimeError("XFAIL in async-step")
+         """
+ 
+-    @use.with_python.version=3.4
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
+-    Scenario: Use @async_run_until_complete(timeout=...) and TIMEOUT occurs (@coroutine)
++    @use.with_python_has_asyncio.coroutine_decorator=true
++    Scenario: Use @async_run_until_complete(timeout=...) and TIMEOUT occurs (@asyncio.coroutine)
+       Given a new working directory
+       And a file named "features/steps/async_steps_timeout34.py" with:
+         """
+@@ -265,13 +240,8 @@ Feature: Async-Test Support (async-step, ...)
+         Assertion Failed: TIMEOUT-OCCURED: timeout=0.2
+         """
+ 
+-    @use.with_python.version=3.4
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
+-    Scenario: Use async-dispatch and async-collect concepts
++    @use.with_python_has_asyncio.coroutine_decorator=true
++    Scenario: Use async-dispatch and async-collect concepts (@asyncio.coroutine)
+       Given a new working directory
+       And a file named "features/steps/async_dispatch_steps.py" with:
+         """
+diff --git a/issue.features/issue0330.feature b/issue.features/issue0330.feature
+index be4d378..56ac238 100644
+--- a/issue.features/issue0330.feature
++++ b/issue.features/issue0330.feature
+@@ -72,7 +72,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @not.with_python.version=3.8
+   @not.with_python.version=3.9
+-  Scenario: Junit report for skipped feature is created with --show-skipped
++  @not.with_python.version=3.10
++  Scenario: Junit report for skipped feature is created with --show-skipped (py.version < 3.8)
+     When I run "behave --junit -t @tag1 --show-skipped @alice_and_bob.featureset"
+     Then it should pass with:
+       """
+@@ -87,7 +88,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @use.with_python.version=3.8
+   @use.with_python.version=3.9
+-  Scenario: Junit report for skipped feature is created with --show-skipped
++  @use.with_python.version=3.10
++  Scenario: Junit report for skipped feature is created with --show-skipped (py.version >= 3.8)
+     When I run "behave --junit -t @tag1 --show-skipped @alice_and_bob.featureset"
+     Then it should pass with:
+       """
+@@ -104,7 +106,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @not.with_python.version=3.8
+   @not.with_python.version=3.9
+-  Scenario: Junit report for skipped scenario is neither shown nor counted with --no-skipped
++  @not.with_python.version=3.10
++  Scenario: Junit report for skipped scenario is neither shown nor counted with --no-skipped (py.version < 3.8)
+     When I run "behave --junit -t @tag1 --no-skipped"
+     Then it should pass with:
+       """
+@@ -125,7 +128,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @use.with_python.version=3.8
+   @use.with_python.version=3.9
+-  Scenario: Junit report for skipped scenario is neither shown nor counted with --no-skipped
++  @use.with_python.version=3.10
++  Scenario: Junit report for skipped scenario is neither shown nor counted with --no-skipped (py.version >= 3.8)
+     When I run "behave --junit -t @tag1 --no-skipped"
+     Then it should pass with:
+       """
+@@ -149,7 +153,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @not.with_python.version=3.8
+   @not.with_python.version=3.9
+-  Scenario: Junit report for skipped scenario is shown and counted with --show-skipped
++  @not.with_python.version=3.10
++  Scenario: Junit report for skipped scenario is shown and counted with --show-skipped (py.version < 3.8)
+     When I run "behave --junit -t @tag1 --show-skipped"
+     Then it should pass with:
+       """
+@@ -171,7 +176,8 @@ Feature: Issue #330: Skipped scenarios are included in junit reports when --no-s
+ 
+   @use.with_python.version=3.8
+   @use.with_python.version=3.9
+-  Scenario: Junit report for skipped scenario is shown and counted with --show-skipped
++  @use.with_python.version=3.10
++  Scenario: Junit report for skipped scenario is shown and counted with --show-skipped (py.version >= 3.8)
+     When I run "behave --junit -t @tag1 --show-skipped"
+     Then it should pass with:
+       """
+diff --git a/issue.features/issue0446.feature b/issue.features/issue0446.feature
+index 12de37a..d7db764 100644
+--- a/issue.features/issue0446.feature
++++ b/issue.features/issue0446.feature
+@@ -60,7 +60,8 @@ Feature: Issue #446 -- Support scenario hook-errors with JUnitReporter
+ 
+     @not.with_python.version=3.8
+     @not.with_python.version=3.9
+-    Scenario: Hook error in before_scenario()
++    @not.with_python.version=3.10
++    Scenario: Hook error in before_scenario() (py.version < 3.8)
+       When I run "behave -f plain --junit features/before_scenario_failure.feature"
+       Then it should fail with:
+         """
+@@ -90,7 +91,8 @@ Feature: Issue #446 -- Support scenario hook-errors with JUnitReporter
+ 
+     @use.with_python.version=3.8
+     @use.with_python.version=3.9
+-    Scenario: Hook error in before_scenario()
++    @use.with_python.version=3.10
++    Scenario: Hook error in before_scenario() (py.version >= 3.8)
+       When I run "behave -f plain --junit features/before_scenario_failure.feature"
+       Then it should fail with:
+         """
+@@ -124,7 +126,8 @@ Feature: Issue #446 -- Support scenario hook-errors with JUnitReporter
+ 
+     @not.with_python.version=3.8
+     @not.with_python.version=3.9
+-    Scenario: Hook error in after_scenario()
++    @not.with_python.version=3.10
++    Scenario: Hook error in after_scenario() (py.version < 3.8)
+       When I run "behave -f plain --junit features/after_scenario_failure.feature"
+       Then it should fail with:
+         """
+@@ -156,7 +159,8 @@ Feature: Issue #446 -- Support scenario hook-errors with JUnitReporter
+ 
+     @use.with_python.version=3.8
+     @use.with_python.version=3.9
+-    Scenario: Hook error in after_scenario()
++    @use.with_python.version=3.10
++    Scenario: Hook error in after_scenario() (py.version >= 3.8)
+       When I run "behave -f plain --junit features/after_scenario_failure.feature"
+       Then it should fail with:
+         """
+diff --git a/issue.features/issue0457.feature b/issue.features/issue0457.feature
+index 6d2f48f..c14c7a4 100644
+--- a/issue.features/issue0457.feature
++++ b/issue.features/issue0457.feature
+@@ -26,7 +26,8 @@ Feature: Issue #457 -- Double-quotes in error messages of JUnit XML reports
+ 
+     @not.with_python.version=3.8
+     @not.with_python.version=3.9
+-    Scenario: Use failing assertation in a JUnit XML report
++    @not.with_python.version=3.10
++    Scenario: Use failing assertation in a JUnit XML report (py.version < 3.8)
+       Given a file named "features/fails1.feature" with:
+         """
+         Feature:
+@@ -48,7 +49,8 @@ Feature: Issue #457 -- Double-quotes in error messages of JUnit XML reports
+ 
+     @use.with_python.version=3.8
+     @use.with_python.version=3.9
+-    Scenario: Use failing assertation in a JUnit XML report
++    @use.with_python.version=3.10
++    Scenario: Use failing assertation in a JUnit XML report (py.version >= 3.8)
+       Given a file named "features/fails1.feature" with:
+         """
+         Feature:
+@@ -73,7 +75,8 @@ Feature: Issue #457 -- Double-quotes in error messages of JUnit XML reports
+ 
+     @not.with_python.version=3.8
+     @not.with_python.version=3.9
+-    Scenario: Use exception in a JUnit XML report
++    @not.with_python.version=3.10
++    Scenario: Use exception in a JUnit XML report (py.version < 3.8)
+       Given a file named "features/fails2.feature" with:
+         """
+         Feature:
+@@ -96,7 +99,8 @@ Feature: Issue #457 -- Double-quotes in error messages of JUnit XML reports
+ 
+     @use.with_python.version=3.8
+     @use.with_python.version=3.9
+-    Scenario: Use exception in a JUnit XML report
++    @use.with_python.version=3.10
++    Scenario: Use exception in a JUnit XML report (py.version >= 3.8)
+       Given a file named "features/fails2.feature" with:
+         """
+         Feature:
+diff --git a/issue.features/issue0657.feature b/issue.features/issue0657.feature
+index aeaefd2..a674a26 100644
+--- a/issue.features/issue0657.feature
++++ b/issue.features/issue0657.feature
+@@ -1,15 +1,10 @@
+-@not.with_python2=true
+ @issue
++@not.with_python2=true
+ Feature: Issue #657 -- Allow async steps with timeouts to fail when they raise exceptions
+ 
+-
+-    @use.with_python.version=3.5
+-    @use.with_python.version=3.6
+-    @use.with_python.version=3.7
+-    @use.with_python.version=3.8
+-    @use.with_python.version=3.9
++    @use.with_python_has_async_function=true
+     @async_step_fails
+-    Scenario: Use @async_run_until_complete and async-step fails
++    Scenario: Use @async_run_until_complete and async-step fails (py.version >= 3.8)
+       Given a new working directory
+       And a file named "features/steps/async_steps_fails35.py" with:
+         """
+diff --git a/more.features/environment.py b/more.features/environment.py
+index 9d4302b..14d904c 100644
+--- a/more.features/environment.py
++++ b/more.features/environment.py
+@@ -1,16 +1,14 @@
+ # -*- coding: UTF-8 -*-
+ 
+ from behave.tag_matcher import ActiveTagMatcher, setup_active_tag_values
+-import sys
++from behave import python_feature
+ 
+ # -- MATCHES ANY TAGS: @use.with_{category}={value}
+ # NOTE: active_tag_value_provider provides category values for active tags.
+-python_version = "%s.%s" % sys.version_info[:2]
+-active_tag_value_provider = {
+-    "python.version": python_version,
+-}
++active_tag_value_provider = python_feature.ACTIVE_TAG_VALUE_PROVIDER.copy()
+ active_tag_matcher = ActiveTagMatcher(active_tag_value_provider)
+ 
++
+ # -----------------------------------------------------------------------------
+ # HOOKS:
+ # -----------------------------------------------------------------------------
+@@ -18,10 +16,12 @@ def before_all(context):
+     # -- SETUP ACTIVE-TAG MATCHER (with userdata):
+     setup_active_tag_values(active_tag_value_provider, context.config.userdata)
+ 
++
+ def before_feature(context, feature):
+     if active_tag_matcher.should_exclude_with(feature.tags):
+         feature.skip(reason=active_tag_matcher.exclude_reason)
+ 
++
+ def before_scenario(context, scenario):
+     if active_tag_matcher.should_exclude_with(scenario.effective_tags):
+         scenario.skip(reason=active_tag_matcher.exclude_reason)
+diff --git a/more.features/run_examples.feature b/more.features/run_examples.feature
+index 4778866..14acf98 100644
+--- a/more.features/run_examples.feature
++++ b/more.features/run_examples.feature
+@@ -29,13 +29,8 @@ Feature: Ensure that all examples are usable
+         features/rule_fails.feature:16  F2 -- Fails
+       """
+ 
+-
+-  @use.with_python.version=3.4
+-  @use.with_python.version=3.5
+-  @use.with_python.version=3.6
+-  @use.with_python.version=3.7
+-  @use.with_python.version=3.8
+-  Scenario: examples/async_step (needs: py34 or newer)
++  @use.with_python_has_coroutine=true
++  Scenario: examples/async_step (requires: python.version >= 3.4)
+     Given I use the directory "examples/async_step" as working directory
+     When I run "behave features/"
+     Then it should pass

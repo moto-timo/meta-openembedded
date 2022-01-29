@@ -1,0 +1,45 @@
+From 34035b1196f5236d5c6c00f0e8af29a016cc3dea Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 8 Jun 2019 20:12:23 +0200
+Subject: [PATCH] Add hints on Gherkin v6 grammar issues.
+
+---
+ docs/conf.py                       | 4 +++-
+ docs/new_and_noteworthy_v1.2.7.rst | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/docs/conf.py b/docs/conf.py
+index f7c2c24..e55fb21 100644
+--- a/docs/conf.py
++++ b/docs/conf.py
+@@ -54,9 +54,11 @@ for optional_module_name in optional_extensions:
+ extlinks = {
+     "pypi": ("https://pypi.org/project/%s", ""),
+     "github": ("https://github.com/%s", "github:/"),
+-    "issue":  ("https://github.com/behave/behave/issue/%s", "issue #"),
++    "issue":  ("https://github.com/behave/behave/issues/%s", "issue #"),
+     "youtube": ("https://www.youtube.com/watch?v=%s", "youtube:video="),
+     "behave": ("https://github.com/behave/behave", None),
++    "cucumber": ("https://github.com/cucumber/cucumber/", None),
++    "cucumber.issue": ("https://github.com/cucumber/cucumber/issues/%s", "issue #"),
+ }
+ 
+ intersphinx_mapping = {
+diff --git a/docs/new_and_noteworthy_v1.2.7.rst b/docs/new_and_noteworthy_v1.2.7.rst
+index 451ed8c..80d9576 100644
+--- a/docs/new_and_noteworthy_v1.2.7.rst
++++ b/docs/new_and_noteworthy_v1.2.7.rst
+@@ -92,5 +92,13 @@ Overview of the `Example Mapping`_ concepts:
+     * https://lisacrispin.com/2016/06/02/experiment-example-mapping/
+     * https://tobythetesterblog.wordpress.com/2016/05/25/how-to-do-example-mapping/
+ 
++.. hint:: **Gherkin v6 Grammar Issues**
++
++    * :cucumber.issue:`632`: Rule tags are currently only supported in `behave`.
++      The Cucumber Gherkin v6 grammar currently lacks this functionality.
++
++    * :cucumber.issue:`590`: Rule Background:
++      A proposal is pending to remove Rule Backgrounds again
++
+ 
+ .. include:: _content.tag_expressions_v2.rst

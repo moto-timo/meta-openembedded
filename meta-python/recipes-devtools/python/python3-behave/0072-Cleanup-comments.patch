@@ -1,0 +1,22 @@
+From fa1a0c15021fc8f3848030248e8eb376886c301f Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sun, 15 Dec 2019 21:25:00 +0100
+Subject: [PATCH] Cleanup comments
+
+---
+ behave/runner.py | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/behave/runner.py b/behave/runner.py
+index bcf4ab2..6b20937 100644
+--- a/behave/runner.py
++++ b/behave/runner.py
+@@ -158,8 +158,6 @@ class Context(object):
+     .. _`configuration file section names`: behave.html#configuration-files
+     """
+     # pylint: disable=too-many-instance-attributes
+-    # BEHAVE = "behave"
+-    # USER = "user"
+     FAIL_ON_CLEANUP_ERRORS = True
+ 
+     def __init__(self, runner):

@@ -1,0 +1,22 @@
+From d4f7a760236dfbdfdec5a59861aae282feb66d40 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 11 Mar 2019 22:37:04 +0100
+Subject: [PATCH] FIXES #725: ScenarioOutlineBuilder was not copying
+ description to created Scenario.
+
+---
+ behave/model.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/behave/model.py b/behave/model.py
+index 4ad4b9d..9dd68fd 100644
+--- a/behave/model.py
++++ b/behave/model.py
+@@ -1196,6 +1196,7 @@ class ScenarioOutlineBuilder(object):
+                 scenario.feature = scenario_outline.feature
+                 scenario.parent = scenario_outline
+                 scenario.background = scenario_outline.background
++                scenario.description = scenario_outline.description
+                 scenario._row = row     # pylint: disable=protected-access
+                 scenarios.append(scenario)
+         return scenarios

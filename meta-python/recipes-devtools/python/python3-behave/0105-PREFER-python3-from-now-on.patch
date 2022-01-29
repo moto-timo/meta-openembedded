@@ -1,0 +1,19 @@
+From 8e469567c5e88ff14a7018f5b399e1070ea6f005 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 12 Oct 2020 22:14:59 +0200
+Subject: [PATCH] PREFER: python3 from now on.
+
+---
+ bin/behave | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/bin/behave b/bin/behave
+index c02e8d3..9ebb584 100755
+--- a/bin/behave
++++ b/bin/behave
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python3
+ # -*- coding: utf-8 -*-
+ 
+ from __future__ import absolute_import

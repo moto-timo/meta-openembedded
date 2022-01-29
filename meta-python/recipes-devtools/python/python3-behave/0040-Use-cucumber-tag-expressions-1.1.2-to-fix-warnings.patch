@@ -1,0 +1,55 @@
+From c014b700e0eb6df440c737e0450de9123e0beb6b Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 6 Jul 2019 13:36:59 +0200
+Subject: [PATCH] Use cucumber-tag-expressions 1.1.2 (to fix warnings).
+
+py.requirements: Add twine, bump2version
+---
+ py.requirements/basic.txt   | 2 +-
+ py.requirements/develop.txt | 6 +++++-
+ setup.py                    | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/py.requirements/basic.txt b/py.requirements/basic.txt
+index 3b71bfb..ad5b9a6 100644
+--- a/py.requirements/basic.txt
++++ b/py.requirements/basic.txt
+@@ -8,7 +8,7 @@
+ #  * http://www.pip-installer.org/
+ # ============================================================================
+ 
+-cucumber-tag-expressions >= 1.1.1
++cucumber-tag-expressions >= 1.1.2
+ parse >= 1.8.2
+ parse_type >= 0.4.2
+ six >= 1.12.0
+diff --git a/py.requirements/develop.txt b/py.requirements/develop.txt
+index d823389..a16d7bf 100644
+--- a/py.requirements/develop.txt
++++ b/py.requirements/develop.txt
+@@ -11,7 +11,11 @@ pathlib;    python_version <= '3.4'
+ pycmd
+ 
+ # -- CONFIGURATION MANAGEMENT (helpers):
+-bumpversion >= 0.4.0
++# FORMER: bumpversion >= 0.4.0
++bump2version >= 0.5.6
++
++# -- RELEASE MANAGEMENT: Push package to pypi.
++twine >= 1.13.0
+ 
+ # -- DEVELOPMENT SUPPORT:
+ tox   >= 1.8.1
+diff --git a/setup.py b/setup.py
+index 9c7560d..cea4392 100644
+--- a/setup.py
++++ b/setup.py
+@@ -76,7 +76,7 @@ setup(
+     # SUPPORT: python2.7, python3.3 (or higher)
+     python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*",
+     install_requires=[
+-        "cucumber-tag-expressions >= 1.1.1",
++        "cucumber-tag-expressions >= 1.1.2",
+         "parse >= 1.8.2",
+         "parse_type >= 0.4.2",
+         "six >= 1.12.0",

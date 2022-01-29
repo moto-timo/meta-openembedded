@@ -1,0 +1,295 @@
+From be073874b8a713f4da63f89c08a19dd60002b634 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 23 Sep 2020 23:22:45 +0200
+Subject: [PATCH] issue #740: Enhancement: Context.add_cleanup() with
+ layer-name
+
+Context.add_cleanup() can choose which cleanup layer to use (outer layer).
+This provides the possibility that a cleanup-funcion, registered with
+Context.add_cleanup(cleanup_func, ...) to be called upon leaving
+the outer context stack frames.
+
+Submitted by: nizwiz
+Requested by: dcvmoole
+---
+ CHANGES.rst                         |  7 +++
+ behave/model.py                     |  4 +-
+ behave/runner.py                    | 45 ++++++++++++---
+ tests/unit/test_context_cleanups.py | 86 ++++++++++++++++++++++++++++-
+ 4 files changed, 130 insertions(+), 12 deletions(-)
+
+diff --git a/CHANGES.rst b/CHANGES.rst
+index d0bf6fd..d758364 100644
+--- a/CHANGES.rst
++++ b/CHANGES.rst
+@@ -28,6 +28,7 @@ ENHANCEMENTS:
+ * Use cucumber "gherkin-languages.json" now (simplify: Gherkin v6 aliases, language usage)
+ * Support emojis in ``*.feature`` files and steps
+ * Select-by-location: Add support for "Scenario container" (Feature, Rule, ScenarioOutline) (related to: #391)
++* issue #740: Enhancement: possibility to add cleanup to be called upon leaving outer context stack frames (submitted by: nizwiz, dcvmoole)
+ * issue #678: Scenario Outline: Support tags with commas and semicolons (provided by: lawnmowerlatte, pull #679)
+ * issue #675: Feature files cannot be found within symlink directories (provided by: smadness, pull #680)
+ 
+@@ -65,6 +66,12 @@ DOCUMENTATION:
+ * pull  #684: Fix typo in "install.rst" (provided by: mstred)
+ * pull  #628: Changed pythonhosted.org links to readthedocs.io (provided by: chrisbrake)
+ 
++BREAKING CHANGES (naming):
++
++* behave.runner.Context._push(layer=None): Was Context._push(layer_name=None)
++* behave.runner.scoped_context_layer(context, layer=None):
++  Was scoped_context_layer(context.layer_name=None)
++
+ 
+ .. _`cucumber-tag-expressions`: https://pypi.org/project/cucumber-tag-expressions/
+ 
+diff --git a/behave/model.py b/behave/model.py
+index cb69f9e..f1ec725 100644
+--- a/behave/model.py
++++ b/behave/model.py
+@@ -363,7 +363,7 @@ class ScenarioContainer(TagAndStatusStatement, Replayable):
+         hook_before_entity = "before_{0}".format(entity_name)
+         hook_after_entity = "after_{0}".format(entity_name)
+ 
+-        runner.context._push(layer_name=entity_name)      # pylint: disable=protected-access
++        runner.context._push(layer=entity_name)      # pylint: disable=protected-access
+         runner.context.tags = set(self.tags)
+         self._setup_context_for_run(runner.context)
+ 
+@@ -1136,7 +1136,7 @@ class Scenario(TagAndStatusStatement, Replayable):
+         dry_run_scenario = run_scenario and runner.config.dry_run
+         self.was_dry_run = dry_run_scenario
+ 
+-        runner.context._push(layer_name="scenario")      # pylint: disable=protected-access
++        runner.context._push(layer="scenario")      # pylint: disable=protected-access
+         runner.context.scenario = self
+         runner.context.tags = set(self.effective_tags)
+ 
+diff --git a/behave/runner.py b/behave/runner.py
+index 6b20937..d01bff0 100644
+--- a/behave/runner.py
++++ b/behave/runner.py
+@@ -145,7 +145,7 @@ class Context(object):
+     tries to overwrite a user-set variable.
+ 
+     You may use the "in" operator to test whether a certain value has been set
+-    on the context, for example:
++    on the context, for example::
+ 
+         "feature" in context
+ 
+@@ -158,6 +158,7 @@ class Context(object):
+     .. _`configuration file section names`: behave.html#configuration-files
+     """
+     # pylint: disable=too-many-instance-attributes
++    LAYER_NAMES = ["testrun", "feature", "rule", "scenario"]
+     FAIL_ON_CLEANUP_ERRORS = True
+ 
+     def __init__(self, runner):
+@@ -245,16 +246,15 @@ class Context(object):
+             del cleanup_errors  # -- ENSURE: Release other exception frames.
+             six.reraise(*first_cleanup_erro_info)
+ 
+-
+-    def _push(self, layer_name=None):
++    def _push(self, layer=None):
+         """Push a new layer on the context stack.
+-        HINT: Use layer_name values: "scenario", "feature", "testrun".
++        HINT: Use layer values: "testrun", "feature", "rule, "scenario".
+ 
+-        :param layer_name:   Layer name to use (or None).
++        :param layer:   Layer name to use (or None).
+         """
+         initial_data = {"@cleanups": []}
+-        if layer_name:
+-            initial_data["@layer"] = layer_name
++        if layer:
++            initial_data["@layer"] = layer
+         self._stack.insert(0, initial_data)
+ 
+     def _pop(self):
+@@ -426,6 +426,20 @@ class Context(object):
+             self.text = original_text
+         return True
+ 
++    def _select_stack_frame_by_layer(self, layer):
++        """Select context stack frame by layer name.
++
++        :param layer:   Layer name (as string).
++        :return: Selected frame object (if any)
++        :raises: LookupError, if layer was not found.
++        """
++        for frame in self._stack:
++            frame_layer = frame.get("@layer", None)
++            if layer == frame_layer:
++                return frame
++        # -- OOPS, NOT FOUND:
++        raise LookupError("Context.stack: layer=%s not found" % layer)
++
+     def add_cleanup(self, cleanup_func, *args, **kwargs):
+         """Adds a cleanup function that is called when :meth:`Context._pop()`
+         is called. This is intended for user-cleanups.
+@@ -433,10 +447,21 @@ class Context(object):
+         :param cleanup_func:    Callable function
+         :param args:            Args for cleanup_func() call (optional).
+         :param kwargs:          Kwargs for cleanup_func() call (optional).
++
++        .. note:: RESERVED :obj:`layer` : optional-string
++
++            The keyword argument ``layer="LAYER_NAME"`` can to be used to
++            assign the :obj:`cleanup_func` to specific a layer on the context stack
++            (instead of the current layer).
++
++            Known layer names are: "testrun", "feature", "rule", "scenario"
++
++        .. seealso:: :attr:`.Context.LAYER_NAMES`
+         """
+         # MAYBE:
+         assert callable(cleanup_func), "REQUIRES: callable(cleanup_func)"
+         assert self._stack
++        layer = kwargs.pop("layer", None)
+         if args or kwargs:
+             def internal_cleanup_func():
+                 cleanup_func(*args, **kwargs)
+@@ -444,6 +469,8 @@ class Context(object):
+             internal_cleanup_func = cleanup_func
+ 
+         current_frame = self._stack[0]
++        if layer:
++            current_frame = self._select_stack_frame_by_layer(layer)
+         if cleanup_func not in current_frame["@cleanups"]:
+             # -- AVOID DUPLICATES:
+             current_frame["@cleanups"].append(internal_cleanup_func)
+@@ -477,7 +504,7 @@ def use_context_with_mode(context, mode):
+ 
+ 
+ @contextlib.contextmanager
+-def scoped_context_layer(context, layer_name=None):
++def scoped_context_layer(context, layer=None):
+     """Provides context manager for context layer (push/do-something/pop cycle).
+ 
+     .. code-block::
+@@ -487,7 +514,7 @@ def scoped_context_layer(context, layer_name=None):
+     """
+     # pylint: disable=protected-access
+     try:
+-        context._push(layer_name)
++        context._push(layer)
+         yield context
+     finally:
+         context._pop()
+diff --git a/tests/unit/test_context_cleanups.py b/tests/unit/test_context_cleanups.py
+index bf0ab50..c32c572 100644
+--- a/tests/unit/test_context_cleanups.py
++++ b/tests/unit/test_context_cleanups.py
+@@ -23,6 +23,9 @@ import pytest
+ def cleanup_func():
+     pass
+ 
++def cleanup_func_with_args(*args, **kwargs):
++    pass
++
+ class CleanupFunction(object):
+     def __init__(self, name="CLEANUP-FUNC", listener=None):
+         self.name = name
+@@ -42,7 +45,6 @@ class CallListener(object):
+         self.collected.append(message)
+ 
+ 
+-
+ # ------------------------------------------------------------------------------
+ # TESTS:
+ # ------------------------------------------------------------------------------
+@@ -145,6 +147,24 @@ class TestContextCleanup(object):
+         my_cleanup_B2M.assert_called_once()
+         my_cleanup_B3M.assert_called_once()
+ 
++    def test_add_cleanup_with_args(self):
++        my_cleanup = Mock(spec=cleanup_func_with_args)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context):
++            context.add_cleanup(my_cleanup, 1, 2, 3)
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once_with(1, 2, 3)
++
++    def test_add_cleanup_with_args_and_kwargs(self):
++        my_cleanup = Mock(spec=cleanup_func_with_args)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context):
++            context.add_cleanup(my_cleanup, 1, 2, 3, name="alice")
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once_with(1, 2, 3, name="alice")
++
+     def test_add_cleanup__rejects_noncallable_cleanup_func(self):
+         class NonCallable(object): pass
+         non_callable = NonCallable()
+@@ -218,3 +238,67 @@ class TestContextCleanup(object):
+         assert collect_cleanup_error.collected[0][:-1] == expected[0][:-1]
+         assert collect_cleanup_error.collected[1][:-1] == expected[1][:-1]
+ 
++
++class TestContextCleanupWithLayer(object):
++    """Tests :meth:`behave.runner.Context.add_cleanup()`
++    with layer parameter.
++
++    :meth:`cleanup_func()` is called when Context layer is removed/popped.
++    """
++
++    def test_add_cleanup_with_known_layer(self):
++        my_cleanup = Mock(spec=cleanup_func)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context, layer="scenario"):
++            context.add_cleanup(my_cleanup, layer="scenario")
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once()
++
++    def test_add_cleanup_with_known_layer_and_args(self):
++        my_cleanup = Mock(spec=cleanup_func_with_args)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context, layer="scenario"):
++            context.add_cleanup(my_cleanup, 1, 2, 3, layer="scenario")
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once_with(1, 2, 3)
++
++    def test_add_cleanup_with_known_layer_and_kwargs(self):
++        my_cleanup = Mock(spec=cleanup_func_with_args)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context, layer="scenario"):
++            context.add_cleanup(my_cleanup, layer="scenario", name="alice")
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once_with(name="alice")
++
++    def test_add_cleanup_with_known_deeper_layer2(self):
++        my_cleanup = Mock(spec=cleanup_func)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context, layer="feature"):
++            with scoped_context_layer(context, layer="scenario"):
++                context.add_cleanup(my_cleanup, layer="feature")
++            my_cleanup.assert_not_called()
++        # CALLS-HERE: context._pop()
++        my_cleanup.assert_called_once()
++
++    def test_add_cleanup_with_known_deeper_layer3(self):
++        my_cleanup = Mock(spec=cleanup_func)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context, layer="testrun"):
++            with scoped_context_layer(context, layer="feature"):
++                with scoped_context_layer(context, layer="scenario"):
++                    context.add_cleanup(my_cleanup, layer="feature")
++                my_cleanup.assert_not_called()
++            my_cleanup.assert_called_once()     # LEFT: layer="feature"
++        my_cleanup.assert_called_once()
++
++    def test_add_cleanup_with_unknown_layer_raises_lookup_error(self):
++        """Cleanup function is not registered"""
++        my_cleanup = Mock(spec=cleanup_func)
++        context = Context(runner=Mock())
++        with scoped_context_layer(context):   # CALLS-HERE: context._push()
++            with pytest.raises(LookupError) as error:
++                context.add_cleanup(my_cleanup, layer="other")
++        my_cleanup.assert_not_called()

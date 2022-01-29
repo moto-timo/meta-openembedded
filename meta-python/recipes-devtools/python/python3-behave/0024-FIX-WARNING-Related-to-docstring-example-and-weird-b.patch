@@ -1,0 +1,25 @@
+From 2717efb301512231a949da540e8e2fb899e01aa0 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sun, 9 Jun 2019 14:27:23 +0200
+Subject: [PATCH] FIX-WARNING: Related to docstring-example and weird backslash
+ usage.
+
+---
+ behave/matchers.py | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/behave/matchers.py b/behave/matchers.py
+index c896f52..0fee0c7 100644
+--- a/behave/matchers.py
++++ b/behave/matchers.py
+@@ -261,9 +261,7 @@ class CFParseMatcher(ParseMatcher):
+ 
+ 
+ def register_type(**kw):
+-    # pylint: disable=anomalous-backslash-in-string
+-    # REQUIRED-BY: code example
+-    """Registers a custom type that will be available to "parse"
++    r"""Registers a custom type that will be available to "parse"
+     for type conversion during step matching.
+ 
+     Converters should be supplied as ``name=callable`` arguments (or as dict).

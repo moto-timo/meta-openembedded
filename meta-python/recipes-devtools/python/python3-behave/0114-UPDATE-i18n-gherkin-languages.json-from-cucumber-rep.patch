@@ -1,0 +1,541 @@
+From 961b1de6682095f654633bca6bd090a3b97286d5 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Tue, 12 Jan 2021 13:21:44 +0100
+Subject: [PATCH] UPDATE: i18n/gherkin-languages.json from cucumber repository.
+
+CONTAINS: PR #827 (Estonian language updates contained)
+LAST COMMIT: 2021-01-07 (in Cucumber repository)
+LANGUAGE CHANGES:
+
+* Swedish: Rule keyword
+* Telugu: Fixing ISO 639-1 code
+* Russian: Rule keyword
+* Hebrew: Rule keyword
+* German: Addition keywords
+* Estonian: Rule keyword, ScenarioOutline keyword
+* Indonesian: Given keywords, whitespace
+---
+ behave/i18n.py                     |  92 ++++++++++++------
+ etc/gherkin/gherkin-languages.json | 145 +++++++++++++++++++++++++----
+ features/cmdline.lang_list.feature |  64 +++++++++----
+ issue.features/issue0309.feature   |   2 +-
+ 4 files changed, 240 insertions(+), 63 deletions(-)
+
+diff --git a/behave/i18n.py b/behave/i18n.py
+index 2781afe..a572626 100644
+--- a/behave/i18n.py
++++ b/behave/i18n.py
+@@ -188,16 +188,19 @@ languages = \
+         'then': ['* ', 'Så '],
+         'when': ['* ', 'Når ']},
+  'de': {'and': ['* ', 'Und '],
+-        'background': ['Grundlage'],
++        'background': ['Grundlage',
++                       'Hintergrund',
++                       'Voraussetzungen',
++                       'Vorbedingungen'],
+         'but': ['* ', 'Aber '],
+         'examples': ['Beispiele'],
+-        'feature': ['Funktionalität'],
++        'feature': ['Funktionalität', 'Funktion'],
+         'given': ['* ', 'Angenommen ', 'Gegeben sei ', 'Gegeben seien '],
+         'name': 'German',
+         'native': 'Deutsch',
+-        'rule': ['Rule'],
++        'rule': ['Rule', 'Regel'],
+         'scenario': ['Beispiel', 'Szenario'],
+-        'scenario_outline': ['Szenariogrundriss'],
++        'scenario_outline': ['Szenariogrundriss', 'Szenarien'],
+         'then': ['* ', 'Dann '],
+         'when': ['* ', 'Wenn ']},
+  'el': {'and': ['* ', 'Και '],
+@@ -344,9 +347,9 @@ languages = \
+         'given': ['* ', 'Eeldades '],
+         'name': 'Estonian',
+         'native': 'eesti keel',
+-        'rule': ['Rule'],
++        'rule': ['Reegel'],
+         'scenario': ['Juhtum', 'Stsenaarium'],
+-        'scenario_outline': ['Raamstjuhtum', 'Raamstsenaarium'],
++        'scenario_outline': ['Raamjuhtum', 'Raamstsenaarium'],
+         'then': ['* ', 'Siis '],
+         'when': ['* ', 'Kui ']},
+  'fa': {'and': ['* ', 'و '],
+@@ -455,7 +458,7 @@ languages = \
+         'given': ['* ', 'בהינתן '],
+         'name': 'Hebrew',
+         'native': 'עברית',
+-        'rule': ['Rule'],
++        'rule': ['כלל'],
+         'scenario': ['דוגמא', 'תרחיש'],
+         'scenario_outline': ['תבנית תרחיש'],
+         'then': ['* ', 'אז ', 'אזי '],
+@@ -518,17 +521,22 @@ languages = \
+         'then': ['* ', 'Akkor '],
+         'when': ['* ', 'Majd ', 'Ha ', 'Amikor ']},
+  'id': {'and': ['* ', 'Dan '],
+-        'background': ['Dasar'],
+-        'but': ['* ', 'Tapi '],
+-        'examples': ['Contoh'],
++        'background': ['Dasar', 'Latar Belakang'],
++        'but': ['* ', 'Tapi ', 'Tetapi '],
++        'examples': ['Contoh', 'Misal'],
+         'feature': ['Fitur'],
+-        'given': ['* ', 'Dengan '],
++        'given': ['* ',
++                  'Dengan ',
++                  'Diketahui ',
++                  'Diasumsikan ',
++                  'Bila ',
++                  'Jika '],
+         'name': 'Indonesian',
+         'native': 'Bahasa Indonesia',
+-        'rule': ['Rule'],
++        'rule': ['Rule', 'Aturan'],
+         'scenario': ['Skenario'],
+-        'scenario_outline': ['Skenario konsep'],
+-        'then': ['* ', 'Maka '],
++        'scenario_outline': ['Skenario konsep', 'Garis-Besar Skenario'],
++        'then': ['* ', 'Maka ', 'Kemudian '],
+         'when': ['* ', 'Ketika ']},
+  'is': {'and': ['* ', 'Og '],
+         'background': ['Bakgrunnur'],
+@@ -699,6 +707,32 @@ languages = \
+         'scenario_outline': ['Сценарын төлөвлөгөө'],
+         'then': ['* ', 'Тэгэхэд ', 'Үүний дараа '],
+         'when': ['* ', 'Хэрэв ']},
++ 'mr': {'and': ['* ', 'आणि ', 'तसेच '],
++        'background': ['पार्श्वभूमी'],
++        'but': ['* ', 'पण ', 'परंतु '],
++        'examples': ['उदाहरण'],
++        'feature': ['वैशिष्ट्य', 'सुविधा'],
++        'given': ['* ', 'जर', 'दिलेल्या प्रमाणे '],
++        'name': 'Marathi',
++        'native': 'मराठी',
++        'rule': ['नियम'],
++        'scenario': ['परिदृश्य'],
++        'scenario_outline': ['परिदृश्य रूपरेखा'],
++        'then': ['* ', 'मग ', 'तेव्हा '],
++        'when': ['* ', 'जेव्हा ']},
++ 'ne': {'and': ['* ', 'र ', 'अनी '],
++        'background': ['पृष्ठभूमी'],
++        'but': ['* ', 'तर '],
++        'examples': ['उदाहरण', 'उदाहरणहरु'],
++        'feature': ['सुविधा', 'विशेषता'],
++        'given': ['* ', 'दिइएको ', 'दिएको ', 'यदि '],
++        'name': 'Nepali',
++        'native': 'नेपाली',
++        'rule': ['नियम'],
++        'scenario': ['परिदृश्य'],
++        'scenario_outline': ['परिदृश्य रूपरेखा'],
++        'then': ['* ', 'त्यसपछि ', 'अनी '],
++        'when': ['* ', 'जब ']},
+  'nl': {'and': ['* ', 'En '],
+         'background': ['Achtergrond'],
+         'but': ['* ', 'Maar '],
+@@ -797,7 +831,7 @@ languages = \
+         'given': ['* ', 'Допустим ', 'Дано ', 'Пусть '],
+         'name': 'Russian',
+         'native': 'русский',
+-        'rule': ['Rule'],
++        'rule': ['Правило'],
+         'scenario': ['Пример', 'Сценарий'],
+         'scenario_outline': ['Структура сценария'],
+         'then': ['* ', 'То ', 'Затем ', 'Тогда '],
+@@ -873,7 +907,7 @@ languages = \
+         'given': ['* ', 'Givet '],
+         'name': 'Swedish',
+         'native': 'Svenska',
+-        'rule': ['Rule'],
++        'rule': ['Regel'],
+         'scenario': ['Scenario'],
+         'scenario_outline': ['Abstrakt Scenario', 'Scenariomall'],
+         'then': ['* ', 'Så '],
+@@ -891,6 +925,19 @@ languages = \
+         'scenario_outline': ['காட்சி சுருக்கம்', 'காட்சி வார்ப்புரு'],
+         'then': ['* ', 'அப்பொழுது '],
+         'when': ['* ', 'எப்போது ']},
++ 'te': {'and': ['* ', 'మరియు '],
++        'background': ['నేపథ్యం'],
++        'but': ['* ', 'కాని '],
++        'examples': ['ఉదాహరణలు'],
++        'feature': ['గుణము'],
++        'given': ['* ', 'చెప్పబడినది '],
++        'name': 'Telugu',
++        'native': 'తెలుగు',
++        'rule': ['Rule'],
++        'scenario': ['ఉదాహరణ', 'సన్నివేశం'],
++        'scenario_outline': ['కథనం'],
++        'then': ['* ', 'అప్పుడు '],
++        'when': ['* ', 'ఈ పరిస్థితిలో ']},
+  'th': {'and': ['* ', 'และ '],
+         'background': ['แนวคิด'],
+         'but': ['* ', 'แต่ '],
+@@ -904,19 +951,6 @@ languages = \
+         'scenario_outline': ['สรุปเหตุการณ์', 'โครงสร้างของเหตุการณ์'],
+         'then': ['* ', 'ดังนั้น '],
+         'when': ['* ', 'เมื่อ ']},
+- 'tl': {'and': ['* ', 'మరియు '],
+-        'background': ['నేపథ్యం'],
+-        'but': ['* ', 'కాని '],
+-        'examples': ['ఉదాహరణలు'],
+-        'feature': ['గుణము'],
+-        'given': ['* ', 'చెప్పబడినది '],
+-        'name': 'Telugu',
+-        'native': 'తెలుగు',
+-        'rule': ['Rule'],
+-        'scenario': ['ఉదాహరణ', 'సన్నివేశం'],
+-        'scenario_outline': ['కథనం'],
+-        'then': ['* ', 'అప్పుడు '],
+-        'when': ['* ', 'ఈ పరిస్థితిలో ']},
+  'tlh': {'and': ['* ', "'ej ", 'latlh '],
+          'background': ["mo'"],
+          'but': ['* ', "'ach ", "'a "],
+diff --git a/etc/gherkin/gherkin-languages.json b/etc/gherkin/gherkin-languages.json
+index 29cbca1..6069664 100644
+--- a/etc/gherkin/gherkin-languages.json
++++ b/etc/gherkin/gherkin-languages.json
+@@ -605,7 +605,10 @@
+       "Und "
+     ],
+     "background": [
+-      "Grundlage"
++      "Grundlage",
++      "Hintergrund",
++      "Voraussetzungen",
++      "Vorbedingungen"
+     ],
+     "but": [
+       "* ",
+@@ -615,7 +618,8 @@
+       "Beispiele"
+     ],
+     "feature": [
+-      "Funktionalität"
++      "Funktionalität",
++      "Funktion"
+     ],
+     "given": [
+       "* ",
+@@ -626,14 +630,16 @@
+     "name": "German",
+     "native": "Deutsch",
+     "rule": [
+-      "Rule"
++      "Rule",
++      "Regel"
+     ],
+     "scenario": [
+       "Beispiel",
+       "Szenario"
+     ],
+     "scenarioOutline": [
+-      "Szenariogrundriss"
++      "Szenariogrundriss",
++      "Szenarien"
+     ],
+     "then": [
+       "* ",
+@@ -1127,14 +1133,14 @@
+     "name": "Estonian",
+     "native": "eesti keel",
+     "rule": [
+-      "Rule"
++      "Reegel"
+     ],
+     "scenario": [
+       "Juhtum",
+       "Stsenaarium"
+     ],
+     "scenarioOutline": [
+-      "Raamstjuhtum",
++      "Raamjuhtum",
+       "Raamstsenaarium"
+     ],
+     "then": [
+@@ -1465,7 +1471,7 @@
+     "name": "Hebrew",
+     "native": "עברית",
+     "rule": [
+-      "Rule"
++      "כלל"
+     ],
+     "scenario": [
+       "דוגמא",
+@@ -1692,36 +1698,46 @@
+       "Dan "
+     ],
+     "background": [
+-      "Dasar"
++      "Dasar",
++      "Latar Belakang"
+     ],
+     "but": [
+       "* ",
+-      "Tapi "
++      "Tapi ",
++      "Tetapi "
+     ],
+     "examples": [
+-      "Contoh"
++      "Contoh",
++      "Misal"
+     ],
+     "feature": [
+       "Fitur"
+     ],
+     "given": [
+       "* ",
+-      "Dengan "
++      "Dengan ",
++      "Diketahui ",
++      "Diasumsikan ",
++      "Bila ",
++      "Jika "
+     ],
+     "name": "Indonesian",
+     "native": "Bahasa Indonesia",
+     "rule": [
+-      "Rule"
++      "Rule",
++      "Aturan"
+     ],
+     "scenario": [
+       "Skenario"
+     ],
+     "scenarioOutline": [
+-      "Skenario konsep"
++      "Skenario konsep",
++      "Garis-Besar Skenario"
+     ],
+     "then": [
+       "* ",
+-      "Maka "
++      "Maka ",
++      "Kemudian "
+     ],
+     "when": [
+       "* ",
+@@ -2330,6 +2346,54 @@
+       "Хэрэв "
+     ]
+   },
++  "ne": {
++    "and": [
++      "* ",
++      "र ",
++      "अनी "
++    ],
++    "background": [
++      "पृष्ठभूमी"
++    ],
++    "but": [
++      "* ",
++      "तर "
++    ],
++    "examples": [
++      "उदाहरण",
++      "उदाहरणहरु"
++    ],
++    "feature": [
++      "सुविधा",
++      "विशेषता"
++    ],
++    "given": [
++      "* ",
++      "दिइएको ",
++      "दिएको ",
++      "यदि "
++    ],
++    "name": "Nepali",
++    "native": "नेपाली",
++    "rule": [
++      "नियम"
++    ],
++    "scenario": [
++      "परिदृश्य"
++    ],
++    "scenarioOutline": [
++      "परिदृश्य रूपरेखा"
++    ],
++    "then": [
++      "* ",
++      "त्यसपछि ",
++      "अनी "
++    ],
++    "when": [
++      "* ",
++      "जब "
++    ]
++  },
+   "nl": {
+     "and": [
+       "* ",
+@@ -2665,7 +2729,7 @@
+     "name": "Russian",
+     "native": "русский",
+     "rule": [
+-      "Rule"
++      "Правило"
+     ],
+     "scenario": [
+       "Пример",
+@@ -2933,7 +2997,7 @@
+     "name": "Swedish",
+     "native": "Svenska",
+     "rule": [
+-      "Rule"
++      "Regel"
+     ],
+     "scenario": [
+       "Scenario"
+@@ -3046,7 +3110,7 @@
+       "เมื่อ "
+     ]
+   },
+-  "tl": {
++  "te": {
+     "and": [
+       "* ",
+       "మరియు "
+@@ -3510,5 +3574,52 @@
+       "* ",
+       "當"
+     ]
++  },
++  "mr": {
++    "and": [
++      "* ",
++      "आणि ",
++      "तसेच "
++    ],
++    "background": [
++      "पार्श्वभूमी"
++    ],
++    "but": [
++      "* ",
++      "पण ",
++      "परंतु "
++    ],
++    "examples": [
++      "उदाहरण"
++    ],
++    "feature": [
++      "वैशिष्ट्य",
++      "सुविधा"
++    ],
++    "given": [
++      "* ",
++      "जर",
++      "दिलेल्या प्रमाणे "
++    ],
++    "name": "Marathi",
++    "native": "मराठी",
++    "rule": [
++      "नियम"
++    ],
++    "scenario": [
++      "परिदृश्य"
++    ],
++    "scenarioOutline": [
++      "परिदृश्य रूपरेखा"
++    ],
++    "then": [
++      "* ",
++      "मग ",
++      "तेव्हा "
++    ],
++    "when": [
++      "* ",
++      "जेव्हा "
++    ]
+   }
+ }
+diff --git a/features/cmdline.lang_list.feature b/features/cmdline.lang_list.feature
+index f77e747..20822ec 100644
+--- a/features/cmdline.lang_list.feature
++++ b/features/cmdline.lang_list.feature
+@@ -39,21 +39,53 @@ Feature: Command-line options: Use behave --lang-list
+           fa: فارسی / Persian
+           fi: suomi / Finnish
+           fr: français / French
+-        """
+-    And the command output should contain:
+-        """
+-        sv: Svenska / Swedish
+-        ta: தமிழ் / Tamil
+-        th: ไทย / Thai
+-        tl: తెలుగు / Telugu
+-        tlh: tlhIngan / Klingon
+-        tr: Türkçe / Turkish
+-        tt: Татарча / Tatar
+-        uk: Українська / Ukrainian
+-        ur: اردو / Urdu
+-        uz: Узбекча / Uzbek
+-        vi: Tiếng Việt / Vietnamese
+-        zh-CN: 简体中文 / Chinese simplified
+-        zh-TW: 繁體中文 / Chinese traditional
++          ga: Gaeilge / Irish
++          gj: ગુજરાતી / Gujarati
++          gl: galego / Galician
++          he: עברית / Hebrew
++          hi: हिंदी / Hindi
++          hr: hrvatski / Croatian
++          ht: kreyòl / Creole
++          hu: magyar / Hungarian
++          id: Bahasa Indonesia / Indonesian
++          is: Íslenska / Icelandic
++          it: italiano / Italian
++          ja: 日本語 / Japanese
++          jv: Basa Jawa / Javanese
++          ka: ქართველი / Georgian
++          kn: ಕನ್ನಡ / Kannada
++          ko: 한국어 / Korean
++          lt: lietuvių kalba / Lithuanian
++          lu: Lëtzebuergesch / Luxemburgish
++          lv: latviešu / Latvian
++          mk-Cyrl: Македонски / Macedonian
++          mk-Latn: Makedonski (Latinica) / Macedonian (Latin)
++          mn: монгол / Mongolian
++          mr: मराठी / Marathi
++          ne: नेपाली / Nepali
++          nl: Nederlands / Dutch
++          no: norsk / Norwegian
++          pa: ਪੰਜਾਬੀ / Panjabi
++          pl: polski / Polish
++          pt: português / Portuguese
++          ro: română / Romanian
++          ru: русский / Russian
++          sk: Slovensky / Slovak
++          sl: Slovenski / Slovenian
++          sr-Cyrl: Српски / Serbian
++          sr-Latn: Srpski (Latinica) / Serbian (Latin)
++          sv: Svenska / Swedish
++          ta: தமிழ் / Tamil
++          te: తెలుగు / Telugu
++          th: ไทย / Thai
++          tlh: tlhIngan / Klingon
++          tr: Türkçe / Turkish
++          tt: Татарча / Tatar
++          uk: Українська / Ukrainian
++          ur: اردو / Urdu
++          uz: Узбекча / Uzbek
++          vi: Tiếng Việt / Vietnamese
++          zh-CN: 简体中文 / Chinese simplified
++          zh-TW: 繁體中文 / Chinese traditional
+         """
+     But the command output should not contain "Traceback"
+diff --git a/issue.features/issue0309.feature b/issue.features/issue0309.feature
+index c8a8857..b50e32d 100644
+--- a/issue.features/issue0309.feature
++++ b/issue.features/issue0309.feature
+@@ -52,8 +52,8 @@ Feature: Issue #309 -- behave --lang-list fails on Python3
+         """
+         sv: Svenska / Swedish
+         ta: தமிழ் / Tamil
++        te: తెలుగు / Telugu
+         th: ไทย / Thai
+-        tl: తెలుగు / Telugu
+         tlh: tlhIngan / Klingon
+         tr: Türkçe / Turkish
+         tt: Татарча / Tatar

@@ -1,0 +1,31 @@
+From 90b5d5a8d0e294f898b0e54e164fb1b0b1206eff Mon Sep 17 00:00:00 2001
+From: Marc Abramowitz <abramowi@adobe.com>
+Date: Thu, 3 Aug 2017 13:29:55 -0700
+Subject: [PATCH] Add BEHAVE_COLOR env var
+
+---
+ behave/configuration.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/behave/configuration.py b/behave/configuration.py
+index 0fdfd5e..e7d385d 100644
+--- a/behave/configuration.py
++++ b/behave/configuration.py
+@@ -83,7 +83,7 @@ options = [
+ 
+     (("--color",),
+      dict(dest="color", choices=["never", "always", "auto"],
+-          default=None, const="auto", nargs="?",
++          default=os.getenv('BEHAVE_COLOR'), const="auto", nargs="?",
+           help="""Use ANSI color escapes. Defaults to %(const)r.
+                   This switch is used to override a
+                   configuration file setting.""")),
+@@ -507,7 +507,7 @@ class Configuration(object):
+     """Configuration object for behave and behave runners."""
+     # pylint: disable=too-many-instance-attributes
+     defaults = dict(
+-        color=sys.platform != "win32",
++        color='never' if sys.platform == "win32" else os.getenv('BEHAVE_COLOR', 'auto'),
+         show_snippets=True,
+         show_skipped=True,
+         dry_run=False,

@@ -1,0 +1,73 @@
+From 40ed5eb4447482777f96bb80d1f632332669b8fd Mon Sep 17 00:00:00 2001
+From: Edvin Linge <edvin.linge@gmail.com>
+Date: Mon, 31 Jul 2017 17:05:18 +0200
+Subject: [PATCH] Steps-catalog should not break configured rerun settings
+
+---
+ behave/configuration.py                  |  5 ++++-
+ features/formatter.rerun.feature         | 17 +++++++++++++++++
+ features/formatter.steps_catalog.feature | 13 +++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/behave/configuration.py b/behave/configuration.py
+index 49b1dff..861f89f 100644
+--- a/behave/configuration.py
++++ b/behave/configuration.py
+@@ -601,7 +601,10 @@ class Configuration(object):
+         if self.steps_catalog:
+             # -- SHOW STEP-CATALOG: As step summary.
+             self.default_format = "steps.catalog"
+-            self.format = ["steps.catalog"]
++            if self.format:
++                self.format.append("steps.catalog")
++            else:
++                self.format = ["steps.catalog"]
+             self.dry_run = True
+             self.summary = False
+             self.show_skipped = False
+diff --git a/features/formatter.rerun.feature b/features/formatter.rerun.feature
+index 1e645f1..b9d7e1b 100644
+--- a/features/formatter.rerun.feature
++++ b/features/formatter.rerun.feature
+@@ -294,3 +294,20 @@ Feature: Rerun Formatter
+             features/bob.feature:13
+             """
+         And note that "the second RerunFormatter overwrites the output of the first one"
++
++    @with.behave_configfile
++    Scenario: RerunFormatter with steps-catalog
++        Given a file named "behave.ini" with:
++            """
++            [behave]
++            format   = rerun
++            outfiles = rerun.txt
++            """
++        When I run "behave --steps-catalog features/"
++
++        Then it should pass with:
++            """
++            Given a step passes
++            """
++        And a file named "rerun.txt" does not exist
++
+diff --git a/features/formatter.steps_catalog.feature b/features/formatter.steps_catalog.feature
+index 09591bf..936d7f4 100644
+--- a/features/formatter.steps_catalog.feature
++++ b/features/formatter.steps_catalog.feature
+@@ -98,3 +98,16 @@ Feature: Steps Catalog Formatter
+           """
+         But note that "the step definitions are ordered by step type"
+         And note that "'When I visit {person}' has no doc-string"
++
++
++    Scenario: Steps catalog formatter is used for output even when other formatter is specified
++        When I run "behave --steps-catalog -f plain features/"
++        Then it should pass with:
++          """
++          Given {person} lives in {city}
++              Setup the data where a person lives and store in the database.
++
++              :param person:  Person's name (as string).
++              :param city:    City where the person lives (as string).
++          """
++

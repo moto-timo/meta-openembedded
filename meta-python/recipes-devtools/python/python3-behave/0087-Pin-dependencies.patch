@@ -1,0 +1,36 @@
+From 2e16dad65d9e9680cd4527f1f16e42768b58212b Mon Sep 17 00:00:00 2001
+From: Renovate Bot <bot@renovateapp.com>
+Date: Wed, 4 Nov 2020 09:32:34 +0000
+Subject: [PATCH] Pin dependencies
+
+---
+ issue.features/py.requirements.txt | 2 +-
+ tasks/py.requirements.txt          | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/issue.features/py.requirements.txt b/issue.features/py.requirements.txt
+index f0def9d..38f452d 100644
+--- a/issue.features/py.requirements.txt
++++ b/issue.features/py.requirements.txt
+@@ -8,4 +8,4 @@
+ #
+ # ============================================================================
+ 
+-PyHamcrest >= 2.0.2
++PyHamcrest==2.0.2
+diff --git a/tasks/py.requirements.txt b/tasks/py.requirements.txt
+index 810f834..9c82d11 100644
+--- a/tasks/py.requirements.txt
++++ b/tasks/py.requirements.txt
+@@ -8,9 +8,9 @@
+ #  * http://www.pip-installer.org/
+ # ============================================================================
+ 
+-invoke >= 1.2.0
++invoke==1.4.1
+ pycmd
+-six >= 1.12.0
++six==1.15.0
+ 
+ # -- HINT: path.py => path (python-install-package was renamed for python3)
+ path.py >= 11.5.0; python_version <  '3.5'

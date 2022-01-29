@@ -1,0 +1,23 @@
+From 20ba1fb0d4c5ed6507d4dee6740a8c12d7af7e2c Mon Sep 17 00:00:00 2001
+From: Jon-Pierre Gentil <jgentil@sebistar.net>
+Date: Thu, 1 Aug 2019 11:21:36 -0500
+Subject: [PATCH] Fixed a bug where use_fixture_by_tag didn't return the actual
+ fixture if the registry entry was just a direct function.
+
+---
+ behave/fixture.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/behave/fixture.py b/behave/fixture.py
+index 3a9f1bc..51e18bf 100644
+--- a/behave/fixture.py
++++ b/behave/fixture.py
+@@ -272,7 +272,7 @@ def use_fixture_by_tag(tag, context, fixture_registry):
+ 
+     if callable(fixture_data):
+         fixture_func = fixture_data
+-        use_fixture(fixture_func, context)
++        return use_fixture(fixture_func, context)
+     elif isinstance(fixture_data, (tuple, list)):
+         assert len(fixture_data) == 3
+         fixture_func, fixture_args, fixture_kwargs = fixture_data

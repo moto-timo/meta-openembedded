@@ -1,0 +1,21 @@
+From 8553f4652edb311415264533fccedff09e898a67 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 11 Dec 2019 08:23:08 +0100
+Subject: [PATCH] Nibble TravisCI to wake up.
+
+---
+ .travis.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/.travis.yml b/.travis.yml
+index c6027e0..781a610 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -6,6 +6,7 @@ python:
+   - "3.7"
+   - "2.7"
+ 
++
+ # -- DISABLE-TEMPORARILY: Ensure faster builds
+ #  - "3.6"
+ #  - "3.5"

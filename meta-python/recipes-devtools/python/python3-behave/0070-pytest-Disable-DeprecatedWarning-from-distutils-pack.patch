@@ -1,0 +1,25 @@
+From 7b6db4e5aa784ae68408b140da554231ce085283 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sun, 15 Dec 2019 20:16:43 +0100
+Subject: [PATCH] pytest: Disable DeprecatedWarning from distutils package.
+
+---
+ pytest.ini | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/pytest.ini b/pytest.ini
+index 228279c..b9f281a 100644
+--- a/pytest.ini
++++ b/pytest.ini
+@@ -29,8 +29,9 @@ markers =
+     slow
+ 
+ # -- PREPARED:
+-# filterwarnings =
+-#    ignore:.*invalid escape sequence.*:DeprecationWarning
++filterwarnings =
++   ignore:.*the imp module is deprecated in favour of importlib.*:DeprecationWarning
++#   ignore:.*invalid escape sequence.*:DeprecationWarning
+ 
+ # -- BACKWARD COMPATIBILITY: pytest < 2.8
+ # norecursedirs = .git .tox build dist py.requirements tmp* _WORKSPACE

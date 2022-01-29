@@ -1,0 +1,342 @@
+From d91be939d75c1cd8fa1f46954ffe2c5674b556f1 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 13 Mar 2019 08:29:02 +0100
+Subject: [PATCH] FIX: SummaryReporter counts computation when Rules are used.
+
+---
+ behave/model.py                               |  39 +++---
+ behave/reporter/summary.py                    | 114 ++++++++++++++----
+ .../unit/{reporters => reporter}/__init__.py  |   0
+ .../{reporters => reporter}/test_summary.py   |   4 +
+ 4 files changed, 116 insertions(+), 41 deletions(-)
+ rename tests/unit/{reporters => reporter}/__init__.py (100%)
+ rename tests/unit/{reporters => reporter}/test_summary.py (99%)
+
+diff --git a/behave/model.py b/behave/model.py
+index 9dd68fd..6238313 100644
+--- a/behave/model.py
++++ b/behave/model.py
+@@ -144,18 +144,18 @@ class ScenarioContainer(TagAndStatusStatement, Replayable):
+         self.hook_failed = False
+         self.run_starttime = 0
+         self.run_endtime = 0
+-        for scenario in self.scenarios:
+-            scenario.reset()
++        for run_item in self.run_items:
++            run_item.reset()
+ 
+     def __iter__(self):
+-        return iter(self.scenarios)
++        return iter(self.run_items)
+ 
+     def add_scenario(self, scenario):
+         feature = getattr(self, "feature", None)
+         if isinstance(self, Feature):
+             feature = self
+ 
+-        scenario.parent = self      # XXX-NEW
++        scenario.parent = self
+         scenario.feature = feature
+         scenario.background = self.background
+         self.scenarios.append(scenario)
+@@ -174,17 +174,17 @@ class ScenarioContainer(TagAndStatusStatement, Replayable):
+ 
+         skipped = True
+         passed_count = 0
+-        for scenario in self.scenarios:
+-            scenario_status = scenario.status
+-            if scenario_status == Status.failed:
++        for run_item in self.run_items:
++            run_item_status = run_item.status
++            if run_item_status == Status.failed:
+                 return Status.failed
+-            elif scenario_status == Status.untested:
++            elif run_item_status == Status.untested:
+                 if passed_count > 0:
+                     return Status.failed  # ABORTED: Some passed, now untested.
+                 return Status.untested
+-            if scenario_status != Status.skipped:
++            if run_item_status != Status.skipped:
+                 skipped = False
+-            if scenario_status == Status.passed:
++            if run_item_status == Status.passed:
+                 passed_count += 1
+ 
+         if skipped:
+@@ -217,14 +217,19 @@ class ScenarioContainer(TagAndStatusStatement, Replayable):
+         """
+         # TODO: Better use self.run_items
+         all_scenarios = []
+-        for scenario in self.scenarios:
+-            if isinstance(scenario, ScenarioOutline):
+-                scenario_outline = scenario
++        # for scenario in self.scenarios:
++        for run_item in self.run_items:
++            if isinstance(run_item, Rule):
++                rule = run_item
++                all_scenarios.extend(rule.walk_scenarios(with_outlines=with_outlines))
++            if isinstance(run_item, ScenarioOutline):
++                scenario_outline = run_item
+                 if with_outlines:
+                     all_scenarios.append(scenario_outline)
+                 all_scenarios.extend(scenario_outline.scenarios)
+             else:
+-                all_scenarios.append(scenario)
++                assert isinstance(run_item, Scenario)
++                all_scenarios.append(run_item)
+         return all_scenarios
+ 
+     def should_run(self, config=None):
+@@ -285,9 +290,9 @@ class ScenarioContainer(TagAndStatusStatement, Replayable):
+         self.clear_status()
+         self.should_skip = True
+         self.skip_reason = reason
+-        for scenario in self.scenarios:
+-            scenario.skip(reason, require_not_executed)
+-        if not self.scenarios:
++        for run_item in self.run_items:
++            run_item.skip(reason, require_not_executed)
++        if not self.run_items:
+             # -- SPECIAL CASE: Feature without scenarios
+             self.set_status(Status.skipped)
+         assert self.status in self.final_status #< skipped, failed or passed.
+diff --git a/behave/reporter/summary.py b/behave/reporter/summary.py
+index c82daa1..2ccdc8f 100644
+--- a/behave/reporter/summary.py
++++ b/behave/reporter/summary.py
+@@ -6,25 +6,52 @@ Provides a summary after each test run.
+ from __future__ import absolute_import, division, print_function
+ import sys
+ from time import time as time_now
+-from behave.model import ScenarioOutline
++from behave.model import Rule, ScenarioOutline  # MAYBE: Scenario
+ from behave.model_core import Status
+ from behave.reporter.base import Reporter
+ from behave.formatter.base import StreamOpener
+ 
+ 
+-# -- DISABLED: optional_steps = ('untested', 'undefined')
+-optional_steps = (Status.untested,) # MAYBE: Status.undefined
+-status_order = (Status.passed, Status.failed, Status.skipped,
++# ---------------------------------------------------------------------------
++# CONSTANTS:
++# ---------------------------------------------------------------------------
++# -- DISABLED: OPTIONAL_STEPS = ('untested', 'undefined')
++OPTIONAL_STEPS = (Status.untested,) # MAYBE: Status.undefined
++STATUS_ORDER = (Status.passed, Status.failed, Status.skipped,
+                 Status.undefined, Status.untested)
+ 
+ 
+-def format_summary(statement_type, summary):
++# ---------------------------------------------------------------------------
++# UTILITY FUNCTIONS:
++# ---------------------------------------------------------------------------
++def pluralize(word, count=1, suffix="s"):
++    if count == 1:
++        return word
++    # -- OTHERWISE:
++    return "{0}{1}".format(word, suffix)
++
++
++def compute_summary_sum(summary):
++    """Compute sum of all summary counts (except: all)
++
++    :param summary: Summary counts (as dict).
++    :return: Sum of all counts (as integer).
++    """
++    counts_sum = 0
++    for name, count in summary.items():
++        if name == "all":
++            continue    # IGNORE IT.
++        counts_sum += count
++    return counts_sum
++
++
++def format_summary0(statement_type, summary):
+     parts = []
+-    for status in status_order:
++    for status in STATUS_ORDER:
+         if status.name not in summary:
+             continue
+         counts = summary[status.name]
+-        if status in optional_steps and counts == 0:
++        if status in OPTIONAL_STEPS and counts == 0:
+             # -- SHOW-ONLY: For relevant counts, suppress: untested items, etc.
+             continue
+ 
+@@ -40,11 +67,23 @@ def format_summary(statement_type, summary):
+     return ", ".join(parts) + "\n"
+ 
+ 
+-def pluralize(word, count=1, suffix="s"):
+-    if count == 1:
+-        return word
+-    # -- OTHERWISE:
+-    return "{0}{1}".format(word, suffix)
++def format_summary(statement_type, summary):
++    parts = []
++    for status in STATUS_ORDER:
++        if status.name not in summary:
++            continue
++        counts = summary[status.name]
++        if status in OPTIONAL_STEPS and counts == 0:
++            # -- SHOW-ONLY: For relevant counts, suppress: untested items, etc.
++            continue
++
++        name = status.name
++        if status.name == "passed":
++            statement = pluralize(statement_type, counts)
++            name = u"%s passed" % statement
++        part = u"%d %s" % (counts, name)
++        parts.append(part)
++    return ", ".join(parts) + "\n"
+ 
+ 
+ # -- PREPARED:
+@@ -60,18 +99,16 @@ def format_summary2(statement_type, summary, end="\n"):
+     :return:
+     """
+     parts = []
+-    counts_sum = 0
+-    for status in status_order:
++    for status in STATUS_ORDER:
+         if status.name not in summary:
+             continue
+         counts = summary[status.name]
+-        if status in optional_steps and counts == 0:
++        if status in OPTIONAL_STEPS and counts == 0:
+             # -- SHOW-ONLY: For relevant counts, suppress: untested items, etc.
+             continue
+-
+-        counts_sum += counts
+         parts.append((status.name, counts))
+ 
++    counts_sum = summary["all"]
+     statement = pluralize(statement_type, sum)
+     parts_text = ", ".join(["{0}: {1}".format(name, value)
+                             for name, value in parts])
+@@ -79,6 +116,9 @@ def format_summary2(statement_type, summary, end="\n"):
+         count=counts_sum, statement=statement, parts=parts_text, end=end)
+ 
+ 
++# ---------------------------------------------------------------------------
++# REPORTERS:
++# ---------------------------------------------------------------------------
+ class SummaryReporter(Reporter):
+     show_failed_scenarios = True
+     output_stream_name = "stdout"
+@@ -88,6 +128,7 @@ class SummaryReporter(Reporter):
+         stream = getattr(sys, self.output_stream_name, sys.stderr)
+         self.stream = StreamOpener.ensure_stream_with_encoder(stream)
+         summary_zero_data = {
++            "all": 0,
+             Status.passed.name: 0,
+             Status.failed.name: 0,
+             Status.skipped.name: 0,
+@@ -122,10 +163,22 @@ class SummaryReporter(Reporter):
+         for scenario in self.failed_scenarios:
+             stream.write(u"  %s  %s\n" % (scenario.location, scenario.name))
+ 
++    def compute_summary_sums(self):
++        """(Re)Compute summary sum of all counts (except: all)."""
++        summaries = [
++            self.feature_summary,
++            self.rule_summary,
++            self.scenario_summary,
++            self.step_summary
++        ]
++        for summary in summaries:
++            summary["all"] = compute_summary_sum(summary)
++
+     def print_summary(self, stream=None, with_duration=True):
+         if stream is None:
+             stream = self.stream
+ 
++        self.compute_summary_sums()
+         stream.write(format_summary("feature", self.feature_summary))
+         rules_summary = format_summary("rule", self.rule_summary)
+         if self.show_rules and not rules_summary.strip().startswith("0"):
+@@ -145,13 +198,7 @@ class SummaryReporter(Reporter):
+             # -- DISCOVER: TEST-RUN started.
+             self.testrun_started()
+ 
+-        self.feature_summary[feature.status.name] += 1
+-        self.duration += feature.duration
+-        for scenario in feature:
+-            if isinstance(scenario, ScenarioOutline):
+-                self.process_scenario_outline(scenario)
+-            else:
+-                self.process_scenario(scenario)
++        self.process_feature(feature)
+ 
+     def end(self):
+         self.testrun_finished()
+@@ -164,6 +211,25 @@ class SummaryReporter(Reporter):
+         # -- SHOW SUMMARY COUNTS:
+         self.print_summary()
+ 
++    def process_run_items_for(self, parent):
++        for run_item in parent:
++            if isinstance(run_item, Rule):
++                self.process_rule(run_item)
++            elif isinstance(run_item, ScenarioOutline):
++                self.process_scenario_outline(run_item)
++            else:
++                # assert isinstance(run_item, Scenario)
++                self.process_scenario(run_item)
++
++    def process_feature(self, feature):
++        self.duration += feature.duration
++        self.feature_summary[feature.status.name] += 1
++        self.process_run_items_for(feature)
++
++    def process_rule(self, rule):
++        self.rule_summary[rule.status.name] += 1
++        self.process_run_items_for(rule)
++
+     def process_scenario(self, scenario):
+         if scenario.status == Status.failed:
+             self.failed_scenarios.append(scenario)
+diff --git a/tests/unit/reporters/__init__.py b/tests/unit/reporter/__init__.py
+similarity index 100%
+rename from tests/unit/reporters/__init__.py
+rename to tests/unit/reporter/__init__.py
+diff --git a/tests/unit/reporters/test_summary.py b/tests/unit/reporter/test_summary.py
+similarity index 99%
+rename from tests/unit/reporters/test_summary.py
+rename to tests/unit/reporter/test_summary.py
+index 02154db..97adbb5 100644
+--- a/tests/unit/reporters/test_summary.py
++++ b/tests/unit/reporter/test_summary.py
+@@ -120,6 +120,7 @@ class TestSummaryReporter(object):
+         reporter.end()
+ 
+         expected = {
++            "all": 5,
+             Status.passed.name: 2,
+             Status.failed.name: 1,
+             Status.skipped.name: 1,
+@@ -156,6 +157,7 @@ class TestSummaryReporter(object):
+         reporter.end()
+ 
+         expected = {
++            "all": 5,
+             Status.passed.name: 1,
+             Status.failed.name: 2,
+             Status.skipped.name: 1,
+@@ -201,6 +203,7 @@ class TestSummaryReporter(object):
+         reporter.end()
+ 
+         expected = {
++            "all": 7,
+             Status.passed.name: 2,
+             Status.failed.name: 3,
+             Status.skipped.name: 2,
+@@ -241,6 +244,7 @@ class TestSummaryReporter(object):
+         reporter.end()
+ 
+         expected = {
++            "all": 5,
+             Status.passed.name: 2,
+             Status.failed.name: 1,
+             Status.skipped.name: 1,

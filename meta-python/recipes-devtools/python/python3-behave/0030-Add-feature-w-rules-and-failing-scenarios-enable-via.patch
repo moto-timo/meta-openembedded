@@ -1,0 +1,36 @@
+From 70d8f1d75928c86808392975e62178f66a78a053 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 1 Jul 2019 22:07:19 +0200
+Subject: [PATCH] Add feature w/ rules and failing scenarios (enable via
+ tags=fail or tags=xfail).
+
+---
+ .../gherkin_v6/features/rule_fails.feature    | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+ create mode 100644 examples/gherkin_v6/features/rule_fails.feature
+
+diff --git a/examples/gherkin_v6/features/rule_fails.feature b/examples/gherkin_v6/features/rule_fails.feature
+new file mode 100644
+index 0000000..7e3872e
+--- /dev/null
++++ b/examples/gherkin_v6/features/rule_fails.feature
+@@ -0,0 +1,19 @@
++@fail
++Feature: With Rule(s) and Failing Scenario(s)
++
++  HINT: Contains failing scenarios (by intention).
++
++  @xfail
++  Scenario: F0 -- Fails
++    When some step fails
++
++  Rule: Fails in Scenario F2
++
++    Scenario: F1
++      Given a step passes
++
++    @xfail
++    Scenario: F2 -- Fails
++      Given another step passes
++      When a step fails
++      Then another step passes

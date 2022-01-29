@@ -1,0 +1,125 @@
+From 3c72af65601b654bffce79f0ae26321030c77147 Mon Sep 17 00:00:00 2001
+From: Peter Bittner <django@bittner.it>
+Date: Sat, 12 Dec 2020 19:45:26 +0100
+Subject: [PATCH] Add Contributing chapter
+
+---
+ docs/conf.py          |  2 +-
+ docs/contributing.rst | 82 +++++++++++++++++++++++++++++++++++++++++++
+ docs/index.rst        |  1 +
+ 3 files changed, 84 insertions(+), 1 deletion(-)
+ create mode 100644 docs/contributing.rst
+
+diff --git a/docs/conf.py b/docs/conf.py
+index e55fb21..1579a36 100644
+--- a/docs/conf.py
++++ b/docs/conf.py
+@@ -108,7 +108,7 @@ if USE_SPHINX_INTERNATIONAL:
+ # -----------------------------------------------------------------------------
+ project = u"behave"
+ authors = u"Jens Engel, Benno Rice and Richard Jones"
+-copyright = u"2012-2019, %s" % authors
++copyright = u"2012-2020, %s" % authors
+ 
+ # The version info for the project you're documenting, acts as replacement for
+ # |version| and |release|, also used in various other places throughout the
+diff --git a/docs/contributing.rst b/docs/contributing.rst
+new file mode 100644
+index 0000000..78f36bd
+--- /dev/null
++++ b/docs/contributing.rst
+@@ -0,0 +1,82 @@
++Contributing
++============
++
++If you find a bug you can fix or want to contribute an enhancement you're
++welcome to `open an issue`_ on GitHub or create a `pull request`_ directly.
++
++.. _open an issue: https://github.com/behave/behave/issues
++.. _pull request: https://github.com/behave/behave/pulls
++
++Using ``invoke`` for Development
++--------------------------------
++
++For most development tasks we have `invoke`_ commands.
++
++Install all requirements for running tasks using Pip, e.g.
++
++.. code-block:: console
++
++    python3 -m pip install -r tasks/py.requirements.txt
++
++Display all available ``invoke`` commands like this:
++
++.. code-block:: console
++
++    invoke -l
++
++If you're curious, all ``invoke`` tasks are located in the ``tasks/``
++folder.
++
++.. _invoke: https://www.pyinvoke.org/
++
++Update Gherkin Language Specification
++-------------------------------------
++
++An ``invoke`` command will download the latest Gherkin language
++specification and update the `behave/i18n.py`_ module:
++
++.. code-block:: console
++
++    invoke develop.update-gherkin
++
++If there were changes this command will have updated two files:
++
++#. ``etc/gherkin/gherkin-languages.json`` (original Cucumber JSON spec)
++#. ``behave/i18n.py`` (Python module generated from the JSON spec)
++
++Put both under version control and open a PR to merge them.
++
++.. _behave/i18n.py:
++    https://github.com/behave/behave/blob/master/behave/i18n.py
++
++Update Documentation
++--------------------
++
++Our documentation is written in `reStructuredText`_, and built and hosted
++on `ReadTheDocs`_. Make your changes to the files in the ``docs/`` folder
++and build the documentation with:
++
++.. code-block:: console
++
++    invoke docs
++
++or, alternatively, using Tox:
++
++.. code-block:: console
++
++    tox -e docs
++
++.. hint::
++
++    Building the docs requires Sphinx and DocUtils. If your build fails
++    because those are missing, run:
++
++        python3 -m pip install -r py.requirements/docs.txt
++
++Once the docs are built successfully, ``sphinx`` will tell you where it
++generated the HTML output (typically ``build/docs/html``), which you can
++then inspect locally.
++
++.. _reStructuredText:
++    https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
++.. _ReadTheDocs: https://readthedocs.org/
+diff --git a/docs/index.rst b/docs/index.rst
+index f0dd20e..e00079c 100644
+--- a/docs/index.rst
++++ b/docs/index.rst
+@@ -43,6 +43,7 @@ Contents
+    comparison
+    new_and_noteworthy
+    more_info
++   contributing
+    appendix
+ 
+ .. seealso::

@@ -1,0 +1,34 @@
+From 788ad07be52adabea8305a4541dc78311ebb3e81 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 2 Nov 2020 17:50:10 +0100
+Subject: [PATCH] RELATED TO: Duplicated steps/AmbiguousStepErrors
+
+* Remove @xfail from third scenario (it worked already for some time).
+* Added more detailled description to third scenario.
+---
+ features/step.duplicated_step.feature | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/features/step.duplicated_step.feature b/features/step.duplicated_step.feature
+index 396cca2..f204307 100644
+--- a/features/step.duplicated_step.feature
++++ b/features/step.duplicated_step.feature
+@@ -76,8 +76,17 @@ Feature: Duplicated Step Definitions
+     #    File "features/steps/bob2_steps.py", line 3, in <module>
+     #    """
+ 
+-  @xfail
++
+   Scenario: Duplicated Same Step Definition via import from another File
++
++    VERIFY THAT: Duplicated step-detection works.
++    Duplicated step-registration occured through a twice imported step-module:
++    First registration may occurs by step-loading the step-module,
++    second registration due to import of first step-module.
++
++    The step registry detects that the same step-function should be registered
++    another time and ignores it (step is already registered).
++
+     Given a new working directory
+     And a file named "features/steps/charly1_steps.py" with:
+       """

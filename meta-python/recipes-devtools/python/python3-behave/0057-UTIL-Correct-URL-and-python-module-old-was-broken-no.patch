@@ -1,0 +1,72 @@
+From 204b965b8fce35887c83ac8c52c2663b06dd103f Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 13 Jul 2019 13:39:49 +0200
+Subject: [PATCH] UTIL: Correct URL and python module (old was broken, no
+ longer exists).
+
+---
+ bin/behave2cucumber_json.py | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/bin/behave2cucumber_json.py b/bin/behave2cucumber_json.py
+index 738e444..541061e 100755
+--- a/bin/behave2cucumber_json.py
++++ b/bin/behave2cucumber_json.py
+@@ -3,9 +3,10 @@
+ # CONVERT: behave JSON dialect to cucumber JSON dialect
+ # =============================================================================
+ # STATUS: __PROTOTYPE__
+-# REQUIRES: Python >= 2.6
+-# REQUIRES: https://github.com/behalfinc/b2c/
+-# SEE: https://github.com/behave/behave/issues/267#issuecomment-249607191
++# REQUIRES: Python >= 2.7
++# REQUIRES: https://github.com/behalf-oss/behave2cucumber
++# SEE:
++# * https://github.com/behave/behave/issues/267#issuecomment-251746565
+ # =============================================================================
+ """
+ Convert a file with behave JSON data into a file with cucumber JSON data.
+@@ -17,15 +18,16 @@ import json
+ import sys
+ import os.path
+ try:
+-    import b2c
++    import behave2cucumber
+ except ImportError:
+-    print("REQUIRE: https://github.com/behalfinc/b2c/  (not installed yet)")
+-    print("INSTALL: pip install b2c")
++    print("REQUIRE: https://github.com/behalf-oss/behave2cucumber (not installed yet)")
++    print("INSTALL: pip install behave2cucumber")
+     sys.exit(2)
+ 
+ 
+ NAME = os.path.basename(__file__)
+ 
++
+ def convert_behave_to_cucumber_json(behave_filename, cucumber_filename,
+                                     encoding="UTF-8", pretty=True):
+     """Convert behave JSON dialect into cucumber JSON dialect.
+@@ -39,12 +41,14 @@ def convert_behave_to_cucumber_json(behave_filename, cucumber_filename,
+ 
+     with open(behave_filename, "r") as behave_json:
+         with open(cucumber_filename, "w+") as output_file:
+-            cucumber_json = b2c.convert(json.load(behave_json, encoding))
++            behave_json = json.load(behave_json, encoding)
++            cucumber_json = behave2cucumber.convert(behave_json)
+             # cucumber_text = json.dumps(cucumber_json, **dump_kwargs)
+             # output_file.write(cucumber_text)
+             json.dump(cucumber_json, output_file, **dump_kwargs)
+     return 0
+ 
++
+ def main(args=None):
+     """Main function to run the script."""
+     if args is None:
+@@ -58,6 +62,7 @@ def main(args=None):
+     cucumber_filename = args[1]
+     return convert_behave_to_cucumber_json(behave_filename, cucumber_filename)
+ 
++
+ # -- AUTO-MAIN:
+ if __name__ == "__main__":
+     sys.exit(main())

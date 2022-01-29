@@ -1,0 +1,97 @@
+From 57cbaa26ba43abe9ab9922269b3efdc56f2aae53 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Fri, 5 Jul 2019 08:27:44 +0200
+Subject: [PATCH] Tweak tests, required by pytest >= 5.0. With pytest.raises
+ use str(e.value) instead of str(e) in some cases.
+
+---
+ tests/issues/test_issue0458.py      |  2 +-
+ tests/unit/test_context_cleanups.py |  2 +-
+ tests/unit/test_textutil.py         | 24 +++++++++++++++---------
+ 3 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/tests/issues/test_issue0458.py b/tests/issues/test_issue0458.py
+index 1853ad6..f66f6d3 100644
+--- a/tests/issues/test_issue0458.py
++++ b/tests/issues/test_issue0458.py
+@@ -48,7 +48,7 @@ def test_issue(exception_class, message):
+         raise_exception(exception_class, message)
+ 
+     # -- SHOULD NOT RAISE EXCEPTION HERE:
+-    text = _text(e)
++    text = _text(e.value)
+     # -- DIAGNOSTICS:
+     print(u"text"+ text)
+     print(u"exception: %s" % e)
+diff --git a/tests/unit/test_context_cleanups.py b/tests/unit/test_context_cleanups.py
+index b0e8ae6..bf0ab50 100644
+--- a/tests/unit/test_context_cleanups.py
++++ b/tests/unit/test_context_cleanups.py
+@@ -153,7 +153,7 @@ class TestContextCleanup(object):
+         with pytest.raises(AssertionError) as e:
+             with scoped_context_layer(context):
+                 context.add_cleanup(non_callable)
+-        assert "REQUIRES: callable(cleanup_func)" in str(e)
++        assert "REQUIRES: callable(cleanup_func)" in str(e.value)
+ 
+     def test_on_cleanup_error__prints_error_by_default(self, capsys):
+         def bad_cleanup_func():
+diff --git a/tests/unit/test_textutil.py b/tests/unit/test_textutil.py
+index f7f642c..e05e9ad 100644
+--- a/tests/unit/test_textutil.py
++++ b/tests/unit/test_textutil.py
+@@ -214,9 +214,11 @@ class TestObjectToTextConversion(object):
+         with pytest.raises(AssertionError) as e:
+             assert False, message
+ 
+-        text2 = text(e)
+-        expected = u"AssertionError: %s" % message
+-        assert text2.endswith(expected)
++        # -- FOR: pytest < 5.0
++        # expected = u"AssertionError: %s" % message
++        text2 = text(e.value)
++        assert u"AssertionError" in text(e)
++        assert message in text2, "OOPS: text=%r" % text2
+ 
+     @requires_python2
+     @pytest.mark.parametrize("message", [
+@@ -236,10 +238,11 @@ class TestObjectToTextConversion(object):
+                 assert expected_decode_error in str(uni_error)
+                 assert False, bytes_message.decode(self.ENCODING)
+ 
++        # -- FOR: pytest < 5.0
++        # expected = u"AssertionError: %s" % message
+         print("decode_error_occured(ascii)=%s" % decode_error_occured)
+-        text2 = text(e)
+-        expected = u"AssertionError: %s" % message
+-        assert text2.endswith(expected)
++        text2 = text(e.value)
++        assert message in text2, "OOPS: text=%r" % text2
+ 
+     @pytest.mark.parametrize("exception_class, message", [
+         (AssertionError, u"Ärgernis"),
+@@ -251,10 +254,13 @@ class TestObjectToTextConversion(object):
+         with pytest.raises(exception_class) as e:
+             raise exception_class(message)
+ 
+-        text2 = text(e)
++        # -- FOR: pytest < 5.0
++        # expected = u"AssertionError: %s" % message
++        text2 = text(e.value)
+         expected = u"%s: %s" % (exception_class.__name__, message)
+         assert isinstance(text2, six.text_type)
+-        assert text2.endswith(expected)
++        assert exception_class.__name__ in str(e)
++        assert message in text2, "OOPS: text=%r" % text2
+ 
+     @requires_python2
+     @pytest.mark.parametrize("exception_class, message", [
+@@ -268,7 +274,7 @@ class TestObjectToTextConversion(object):
+         with pytest.raises(exception_class) as e:
+             raise exception_class(bytes_message)
+ 
+-        text2 = text(e)
++        text2 = text(e.value)
+         unicode_message = bytes_message.decode(self.ENCODING)
+         expected = u"%s: %s" % (exception_class.__name__, unicode_message)
+         assert isinstance(text2, six.text_type)

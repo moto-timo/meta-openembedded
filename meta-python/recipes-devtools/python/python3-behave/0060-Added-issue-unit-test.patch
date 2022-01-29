@@ -1,0 +1,62 @@
+From 4a028d6adcf55c24c50dd00405f9c1bee9bdb85e Mon Sep 17 00:00:00 2001
+From: Jon-Pierre Gentil <jgentil@sebistar.net>
+Date: Thu, 1 Aug 2019 11:48:08 -0500
+Subject: [PATCH] Added issue unit test
+
+---
+ tests/issues/test_issue0767.py | 46 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+ create mode 100644 tests/issues/test_issue0767.py
+
+diff --git a/tests/issues/test_issue0767.py b/tests/issues/test_issue0767.py
+new file mode 100644
+index 0000000..1de3589
+--- /dev/null
++++ b/tests/issues/test_issue0767.py
+@@ -0,0 +1,46 @@
++"""
++https://github.com/behave/behave/issues/767
++
++When trying to do something like::
++
++    fixture_registry = {'fixture.foo': foo_fixture}
++    f = use_fixture_by_tag('fixture.foo', context, fixture_registry)
++
++Behave returns nothing. ::
++
++    repr(f)
++    'None'
++
++This seems to be an oversight.
++"""
++
++from mock import Mock
++
++def test_issue_767_use_feature_by_tag_has_no_return():
++    """Verifies that issue #767 is fixed."""
++    from behave.fixture import fixture, use_fixture_by_tag
++    from behave.runner import Context
++
++    @fixture(name='fixture.foo')
++    def foo_fixture(context, *args, **kwargs):
++        context.foo = 'foo'
++        return context.foo
++
++    # -- SCHEMA 1: fixture_func
++    fixture_registry1 = {
++        "fixture.foo": foo_fixture
++    }
++    # -- SCHEMA 2: fixture_func, fixture_args, fixture_kwargs
++    fixture_registry2 = {
++        "fixture.foo": (foo_fixture, (), {})
++    }
++
++    context = Context(runner=Mock())
++    f1 = use_fixture_by_tag('fixture.foo', context, fixture_registry1)
++    assert f1 == 'foo'
++    assert context.foo is f1
++
++    context = Context(runner=Mock())
++    f2 = use_fixture_by_tag('fixture.foo', context, fixture_registry2)
++    assert f2 == 'foo'
++    assert context.foo is f2

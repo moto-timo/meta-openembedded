@@ -1,0 +1,250 @@
+From 1d6dcc944437cceade9fa07b89cea63c221aa2e6 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 6 Jul 2019 19:06:11 +0200
+Subject: [PATCH] FIX: Invalid escape char (in regex) w/ python3.
+
+---
+ behave/formatter/ansi_escapes.py |  53 ++++++++----
+ tests/unit/test_ansi_escapes.py  | 144 ++++++++++++++++++-------------
+ 2 files changed, 122 insertions(+), 75 deletions(-)
+
+diff --git a/behave/formatter/ansi_escapes.py b/behave/formatter/ansi_escapes.py
+index 6c93e6c..3ec84db 100644
+--- a/behave/formatter/ansi_escapes.py
++++ b/behave/formatter/ansi_escapes.py
+@@ -7,6 +7,9 @@ from __future__ import absolute_import
+ import os
+ import re
+ 
++# ---------------------------------------------------------------------------
++# MODULE DATA
++# ---------------------------------------------------------------------------
+ colors = {
+     "black":        u"\x1b[30m",
+     "red":          u"\x1b[31m",
+@@ -38,27 +41,48 @@ escapes = {
+     "up":           u"\x1b[1A",
+ }
+ 
+-if "GHERKIN_COLORS" in os.environ:
+-    new_aliases = [p.split("=") for p in os.environ["GHERKIN_COLORS"].split(":")]
+-    aliases.update(dict(new_aliases))
+ 
+-for alias in aliases:
+-    escapes[alias] = "".join([colors[c] for c in aliases[alias].split(",")])
+-    arg_alias = alias + "_arg"
+-    arg_seq = aliases.get(arg_alias, aliases[alias] + ",bold")
+-    escapes[arg_alias] = "".join([colors[c] for c in arg_seq.split(",")])
++# -- NEEDED-FOR: strip_escapes(), ...
++_ANSI_ESCAPE_PATTERN = re.compile(u"\x1b\\[\\d+[mA]", re.UNICODE)
+ 
+ 
+-# pylint: disable=anomalous-backslash-in-string
++
++# ---------------------------------------------------------------------------
++# MODULE SETUP
++# ---------------------------------------------------------------------------
++def _setup_module():
++    """Setup the remaining ANSI color aliases and ANSI escape sequences.
++
++    .. note:: May modify/extend the module attributes:
++
++        * :attr:`aliases`
++        * :attr:`escapes`
++    """
++    # MAYBE: global aliases, escapes
++    if "GHERKIN_COLORS" in os.environ:
++        new_aliases = [p.split("=") for p in os.environ["GHERKIN_COLORS"].split(":")]
++        aliases.update(dict(new_aliases))
++
++    for alias in aliases:
++        escapes[alias] = "".join([colors[c] for c in aliases[alias].split(",")])
++        arg_alias = alias + "_arg"
++        arg_seq = aliases.get(arg_alias, aliases[alias] + ",bold")
++        escapes[arg_alias] = "".join([colors[c] for c in arg_seq.split(",")])
++
++
++# -- ONCE: During module-import.
++_setup_module()
++
++
++# ---------------------------------------------------------------------------
++# FUNCTIONS:
++# ---------------------------------------------------------------------------
+ def up(n):
+     return u"\x1b[%dA" % n
+ 
+ 
+-_ANSI_ESCAPE_PATTERN = re.compile(u"\x1b\[\d+[mA]", re.UNICODE)
+-# pylint: enable=anomalous-backslash-in-string
+ def strip_escapes(text):
+-    """
+-    Removes ANSI escape sequences from text (if any are contained).
++    """Removes ANSI escape sequences from text (if any are contained).
+ 
+     :param text: Text that may or may not contain ANSI escape sequences.
+     :return: Text without ANSI escape sequences.
+@@ -67,8 +91,7 @@ def strip_escapes(text):
+ 
+ 
+ def use_ansi_escape_colorbold_composites():     # pragma: no cover
+-    """
+-    Patch for "sphinxcontrib-ansi" to process the following ANSI escapes
++    """Patch for "sphinxcontrib-ansi" to process the following ANSI escapes
+     correctly (set-color set-bold sequences):
+ 
+         ESC[{color}mESC[1m  => ESC[{color};1m
+diff --git a/tests/unit/test_ansi_escapes.py b/tests/unit/test_ansi_escapes.py
+index 969f3a9..4fb78c2 100644
+--- a/tests/unit/test_ansi_escapes.py
++++ b/tests/unit/test_ansi_escapes.py
+@@ -9,65 +9,89 @@
+ from __future__ import absolute_import
+ import pytest
+ from behave.formatter import ansi_escapes
+-import unittest
+ from six.moves import range
+ 
+-class StripEscapesTest(unittest.TestCase):
+-    ALL_COLORS = list(ansi_escapes.colors.keys())
+-    CURSOR_UPS = [ ansi_escapes.up(count)  for count in range(10) ]
+-    TEXTS = [
+-        u"lorem ipsum",
+-        u"Alice\nBob\nCharly\nDennis",
+-    ]
+-
+-    @classmethod
+-    def colorize(cls, text, color):
+-        color_escape = ""
+-        if color:
+-            color_escape = ansi_escapes.colors[color]
+-        return color_escape + text + ansi_escapes.escapes["reset"]
+-
+-    @classmethod
+-    def colorize_text(cls, text, colors=None):
+-        if not colors:
+-            colors = []
+-        colors_size = len(colors)
+-        color_index = 0
+-        colored_chars = []
+-        for char in text:
+-            color = colors[color_index]
+-            colored_chars.append(cls.colorize(char, color))
+-            color_index += 1
+-            if color_index >= colors_size:
+-                color_index = 0
+-        return "".join(colored_chars)
+-
+-    def test_should_return_same_text_without_escapes(self):
+-        for text in self.TEXTS:
+-            assert text == ansi_escapes.strip_escapes(text)
+-
+-    def test_should_return_empty_string_for_any_ansi_escape(self):
+-        # XXX-JE-CHECK-PY23: If list() is really needed.
+-        for text in list(ansi_escapes.colors.values()):
+-            assert "" == ansi_escapes.strip_escapes(text)
+-        for text in list(ansi_escapes.escapes.values()):
+-            assert "" == ansi_escapes.strip_escapes(text)
+-
+-
+-    def test_should_strip_color_escapes_from_text(self):
+-        for text in self.TEXTS:
+-            colored_text = self.colorize_text(text, self.ALL_COLORS)
+-            assert text == ansi_escapes.strip_escapes(colored_text)
+-            self.assertNotEqual(text, colored_text)
+-
+-            for color in self.ALL_COLORS:
+-                colored_text = self.colorize(text, color)
+-                assert text == ansi_escapes.strip_escapes(colored_text)
+-                self.assertNotEqual(text, colored_text)
+-
+-    def test_should_strip_cursor_up_escapes_from_text(self):
+-        for text in self.TEXTS:
+-            for cursor_up in self.CURSOR_UPS:
+-                colored_text = cursor_up + text + ansi_escapes.escapes["reset"]
+-                assert text == ansi_escapes.strip_escapes(colored_text)
+-                self.assertNotEqual(text, colored_text)
++
++# --------------------------------------------------------------------------
++# TEST SUPPORT and TEST DATA
++# --------------------------------------------------------------------------
++TEXTS = [
++    u"lorem ipsum",
++    u"Alice and Bob",
++    u"Alice\nBob",
++]
++ALL_COLORS = list(ansi_escapes.colors.keys())
++CURSOR_UPS = [ansi_escapes.up(count) for count in range(10)]
++
++
++def colorize(text, color):
++    color_escape = ""
++    if color:
++        color_escape = ansi_escapes.colors[color]
++    return color_escape + text + ansi_escapes.escapes["reset"]
++
++
++def colorize_text(text, colors=None):
++    if not colors:
++        colors = []
++    colors_size = len(colors)
++    color_index = 0
++    colored_chars = []
++    for char in text:
++        color = colors[color_index]
++        colored_chars.append(colorize(char, color))
++        color_index += 1
++        if color_index >= colors_size:
++            color_index = 0
++    return "".join(colored_chars)
++
++
++# --------------------------------------------------------------------------
++# TEST SUITE
++# --------------------------------------------------------------------------
++def test_module_setup():
++    """Ensure that the module setup (aliases, escapes) occured."""
++    # colors_count = len(ansi_escapes.colors)
++    aliases_count = len(ansi_escapes.aliases)
++    escapes_count = len(ansi_escapes.escapes)
++    assert escapes_count >= (2 + aliases_count + aliases_count)
++
++
++class TestStripEscapes(object):
++
++    @pytest.mark.parametrize("text", TEXTS)
++    def test_should_return_same_text_without_escapes(self, text):
++        assert text == ansi_escapes.strip_escapes(text)
++
++    @pytest.mark.parametrize("text", ansi_escapes.colors.values())
++    def test_should_return_empty_string_for_any_ansi_escape_color(self, text):
++        assert "" == ansi_escapes.strip_escapes(text)
++
++    @pytest.mark.parametrize("text", ansi_escapes.escapes.values())
++    def test_should_return_empty_string_for_any_ansi_escape(self, text):
++        assert "" == ansi_escapes.strip_escapes(text)
++
++    @pytest.mark.parametrize("text", TEXTS)
++    def test_should_strip_color_escapes_from_all_colored_text(self, text):
++        colored_text = colorize_text(text, ALL_COLORS)
++        assert text == ansi_escapes.strip_escapes(colored_text)
++        assert text != colored_text
++
++    @pytest.mark.parametrize("text", TEXTS)
++    @pytest.mark.parametrize("color", ALL_COLORS)
++    def test_should_strip_color_escapes_from_text(self, text, color):
++        colored_text = colorize(text, color)
++        assert text == ansi_escapes.strip_escapes(colored_text)
++        assert text != colored_text
++
++        colored_text2 = colorize(text, color) + text
++        text2 = text + text
++        assert text2 == ansi_escapes.strip_escapes(colored_text2)
++        assert text2 != colored_text2
++
++    @pytest.mark.parametrize("text", TEXTS)
++    @pytest.mark.parametrize("cursor_up", CURSOR_UPS)
++    def test_should_strip_cursor_up_escapes_from_text(self, text, cursor_up):
++        colored_text = cursor_up + text + ansi_escapes.escapes["reset"]
++        assert text == ansi_escapes.strip_escapes(colored_text)
++        assert text != colored_text

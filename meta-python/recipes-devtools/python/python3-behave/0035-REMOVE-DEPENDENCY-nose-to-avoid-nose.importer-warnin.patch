@@ -1,0 +1,1815 @@
+From c42026dc237454a43b07129c45ae0206c10732e4 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 6 Jul 2019 09:10:52 +0200
+Subject: [PATCH] REMOVE-DEPENDENCY: nose (to avoid nose.importer warnings)
+
+Replace nose test-framework functionality w/ pytest.
+Move test/*.py => tests/unit/*.py
+---
+ MANIFEST.in                                   |   2 -
+ conftest.py                                   |  13 ++
+ invoke.yaml                                   |   1 +
+ py.requirements/ci.tox.txt                    |   9 +
+ py.requirements/ci.travis.txt                 |   1 -
+ py.requirements/develop.txt                   |   1 -
+ py.requirements/testing.txt                   |   3 +-
+ pytest.ini                                    |   7 +-
+ setup.py                                      |   8 +-
+ tasks/test.py                                 |   2 +-
+ test/__init__.py                              |   0
+ test/test_importer.py                         | 151 -------------
+ {test => tests/unit}/_importer_candidate.py   |   0
+ tests/unit/reporter/test_summary.py           |   2 -
+ .../test_tag_expression_v1_part1.py           |  17 +-
+ .../test_tag_expression_v1_part2.py           |  18 +-
+ {test => tests/unit}/test_ansi_escapes.py     |  14 +-
+ {test => tests/unit}/test_configuration.py    |  75 +++---
+ {test => tests/unit}/test_formatter.py        |  15 +-
+ .../unit}/test_formatter_progress.py          |   7 +
+ {test => tests/unit}/test_formatter_rerun.py  |  12 +-
+ {test => tests/unit}/test_formatter_tags.py   |   9 +
+ tests/unit/test_importer.py                   |   2 +-
+ {test => tests/unit}/test_log_capture.py      |   9 +-
+ {test => tests/unit}/test_matchers.py         |  24 +-
+ tests/unit/test_parser.py                     |   1 -
+ {test => tests/unit}/test_runner.py           | 213 ++++++++++--------
+ {test => tests/unit}/test_step_registry.py    |   5 +-
+ tests/unit/test_textutil.py                   |  12 +-
+ tox.ini                                       |  19 +-
+ 30 files changed, 283 insertions(+), 369 deletions(-)
+ create mode 100644 py.requirements/ci.tox.txt
+ delete mode 100644 test/__init__.py
+ delete mode 100644 test/test_importer.py
+ rename {test => tests/unit}/_importer_candidate.py (100%)
+ rename {test => tests/unit}/test_ansi_escapes.py (84%)
+ rename {test => tests/unit}/test_configuration.py (72%)
+ rename {test => tests/unit}/test_formatter.py (94%)
+ rename {test => tests/unit}/test_formatter_progress.py (99%)
+ rename {test => tests/unit}/test_formatter_rerun.py (94%)
+ rename {test => tests/unit}/test_formatter_tags.py (99%)
+ rename {test => tests/unit}/test_log_capture.py (87%)
+ rename {test => tests/unit}/test_matchers.py (93%)
+ rename {test => tests/unit}/test_runner.py (82%)
+ rename {test => tests/unit}/test_step_registry.py (95%)
+
+diff --git a/MANIFEST.in b/MANIFEST.in
+index 49cb7c6..60c2601 100644
+--- a/MANIFEST.in
++++ b/MANIFEST.in
+@@ -33,5 +33,3 @@ recursive-include py.requirements  *.txt
+ 
+ prune .tox
+ prune .venv*
+-prune paver_ext
+-exclude pavement.py
+diff --git a/conftest.py b/conftest.py
+index 7b3a883..71a3bd0 100644
+--- a/conftest.py
++++ b/conftest.py
+@@ -10,6 +10,10 @@ Add project-specific information.
+ import behave
+ import pytest
+ 
++
++# ---------------------------------------------------------------------------
++# PYTEST FIXTURES:
++# ---------------------------------------------------------------------------
+ @pytest.fixture(autouse=True)
+ def _annotate_environment(request):
+     """Add project-specific information to test-run environment:
+@@ -25,3 +29,12 @@ def _annotate_environment(request):
+         behave_version = behave.__version__
+         environment.append(("behave", behave_version))
+ 
++_pytest_version = pytest.__version__
++if _pytest_version >= "5.0":
++    # -- SUPPORTED SINCE: pytest 5.0
++    @pytest.fixture(scope="session", autouse=True)
++    def log_global_env_facts(record_testsuite_property):
++        # SEE: https://docs.pytest.org/en/latest/usage.html
++        behave_version = behave.__version__
++        record_testsuite_property("BEHAVE_VERSION", behave_version)
++
+diff --git a/invoke.yaml b/invoke.yaml
+index 4f21328..3e93cfc 100644
+--- a/invoke.yaml
++++ b/invoke.yaml
+@@ -23,6 +23,7 @@ sphinx:
+     languages:
+       - de
+       # PREPARED: - zh-CN
++
+ cleanup:
+     extra_directories:
+       - "build"
+diff --git a/py.requirements/ci.tox.txt b/py.requirements/ci.tox.txt
+new file mode 100644
+index 0000000..6b3b3ae
+--- /dev/null
++++ b/py.requirements/ci.tox.txt
+@@ -0,0 +1,9 @@
++# ============================================================================
++# BEHAVE: PYTHON PACKAGE REQUIREMENTS: ci.tox.txt
++# ============================================================================
++
++pytest >= 4.2
++pytest-html >= 1.19.0
++mock >= 2.0
++PyHamcrest >= 1.9
++path.py >= 10.1
+diff --git a/py.requirements/ci.travis.txt b/py.requirements/ci.travis.txt
+index 1cc0239..73d65f6 100644
+--- a/py.requirements/ci.travis.txt
++++ b/py.requirements/ci.travis.txt
+@@ -1,5 +1,4 @@
+ mock
+-nose
+ PyHamcrest >= 1.9
+ pytest >= 3.0
+ pytest-html >= 1.19.0
+diff --git a/py.requirements/develop.txt b/py.requirements/develop.txt
+index 3deedc7..d823389 100644
+--- a/py.requirements/develop.txt
++++ b/py.requirements/develop.txt
+@@ -14,7 +14,6 @@ pycmd
+ bumpversion >= 0.4.0
+ 
+ # -- DEVELOPMENT SUPPORT:
+-# PREPARED: nose-cov >= 1.4
+ tox   >= 1.8.1
+ coverage >= 4.2
+ pytest-cov
+diff --git a/py.requirements/testing.txt b/py.requirements/testing.txt
+index 3806d39..a418739 100644
+--- a/py.requirements/testing.txt
++++ b/py.requirements/testing.txt
+@@ -4,9 +4,8 @@
+ 
+ # -- TESTING: Unit tests and behave self-tests.
+ # PREPARED-FUTURE: behave4cmd0, behave4cmd
+-pytest >= 3.0
++pytest >= 4.2
+ pytest-html >= 1.19.0
+-nose  >= 1.3
+ mock  >= 2.0
+ PyHamcrest >= 1.9
+ 
+diff --git a/pytest.ini b/pytest.ini
+index 17ad388..a686596 100644
+--- a/pytest.ini
++++ b/pytest.ini
+@@ -16,8 +16,8 @@
+ # ============================================================================
+ 
+ [pytest]
+-minversion    = 2.8
+-testpaths     = test tests
++minversion    = 4.2
++testpaths     = tests
+ python_files  = test_*.py
+ addopts = --metadata PACKAGE_UNDER_TEST behave
+     --metadata PACKAGE_VERSION 1.2.7.dev1
+@@ -26,6 +26,7 @@ addopts = --metadata PACKAGE_UNDER_TEST behave
+ markers =
+     smoke
+     slow
++
+ # -- BACKWARD COMPATIBILITY: pytest < 2.8
+-norecursedirs = .git .tox build dist py.requirements tmp* _WORKSPACE
++# norecursedirs = .git .tox build dist py.requirements tmp* _WORKSPACE
+ 
+diff --git a/setup.py b/setup.py
+index ac7bddf..9c7560d 100644
+--- a/setup.py
++++ b/setup.py
+@@ -86,13 +86,11 @@ setup(
+         "win_unicode_console; python_version < '3.6'",
+         "colorama",
+     ],
+-    test_suite="nose.collector",
+     tests_require=[
+-        "pytest >= 3.0",
++        "pytest >= 4.2",
+         "pytest-html >= 1.19.0",
+-        "nose >= 1.3",
+         "mock >= 1.1",
+-        "PyHamcrest >= 1.8",
++        "PyHamcrest >= 1.9",
+         "path.py >= 11.5.0"
+     ],
+     cmdclass = {
+@@ -105,7 +103,7 @@ setup(
+         ],
+         "develop": [
+             "coverage",
+-            "pytest >= 3.0",
++            "pytest >= 4.2",
+             "pytest-html >= 1.19.0",
+             "pytest-cov",
+             "tox",
+diff --git a/tasks/test.py b/tasks/test.py
+index 06eb175..bfa2d80 100644
+--- a/tasks/test.py
++++ b/tasks/test.py
+@@ -172,7 +172,7 @@ namespace.configure({
+         },
+     },
+     "pytest": {
+-        "scopes":   ["test", "tests"],
++        "scopes":   ["tests"],
+         "args":   "",
+         "options": "",  # -- NOTE:  Overide in configfile "invoke.yaml"
+     },
+diff --git a/test/__init__.py b/test/__init__.py
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/test/test_importer.py b/test/test_importer.py
+deleted file mode 100644
+index baca21a..0000000
+--- a/test/test_importer.py
++++ /dev/null
+@@ -1,151 +0,0 @@
+-# -*- coding: utf-8 -*-
+-"""
+-Tests for behave.importing.
+-The module provides a lazy-loading/importing mechanism.
+-"""
+-
+-from __future__ import absolute_import
+-from behave.importer import LazyObject, LazyDict, load_module, parse_scoped_name
+-from behave.formatter.base import Formatter
+-from nose.tools import eq_, assert_raises
+-import sys
+-import types
+-# import unittest
+-
+-
+-class TestTheory(object): pass
+-class ImportModuleTheory(TestTheory):
+-    """
+-    Provides a test theory for importing modules.
+-    """
+-
+-    @classmethod
+-    def ensure_module_is_not_imported(cls, module_name):
+-        if module_name in sys.modules:
+-            del sys.modules[module_name]
+-        cls.assert_module_is_not_imported(module_name)
+-
+-    @staticmethod
+-    def assert_module_is_imported(module_name):
+-        module = sys.modules.get(module_name, None)
+-        assert module_name in sys.modules
+-        assert module is not None
+-
+-    @staticmethod
+-    def assert_module_is_not_imported(module_name):
+-        assert module_name not in sys.modules
+-
+-    @staticmethod
+-    def assert_module_with_name(module, name):
+-        assert isinstance(module, types.ModuleType)
+-        eq_(module.__name__, name)
+-
+-
+-class TestLoadModule(object):
+-    theory = ImportModuleTheory
+-
+-    def test_load_module__should_fail_for_unknown_module(self):
+-        assert_raises(ImportError, load_module, "__unknown_module__")
+-
+-    def test_load_module__should_succeed_for_already_imported_module(self):
+-        module_name = "behave.importer"
+-        self.theory.assert_module_is_imported(module_name)
+-
+-        module = load_module(module_name)
+-        self.theory.assert_module_with_name(module, module_name)
+-        self.theory.assert_module_is_imported(module_name)
+-
+-    def test_load_module__should_succeed_for_existing_module(self):
+-        module_name = "test._importer_candidate"
+-        self.theory.ensure_module_is_not_imported(module_name)
+-
+-        module = load_module(module_name)
+-        self.theory.assert_module_with_name(module, module_name)
+-        self.theory.assert_module_is_imported(module_name)
+-
+-class TestLazyObject(object):
+-
+-    def test_get__should_succeed_for_known_object(self):
+-        lazy = LazyObject("behave.importer", "LazyObject")
+-        value = lazy.get()
+-        assert value is LazyObject
+-
+-        lazy2 = LazyObject("behave.importer:LazyObject")
+-        value2 = lazy2.get()
+-        assert value2 is LazyObject
+-
+-        lazy3 = LazyObject("behave.formatter.steps", "StepsFormatter")
+-        value3 = lazy3.get()
+-        assert issubclass(value3, Formatter)
+-
+-    def test_get__should_fail_for_unknown_module(self):
+-        lazy = LazyObject("__unknown_module__", "xxx")
+-        assert_raises(ImportError, lazy.get)
+-
+-    def test_get__should_fail_for_unknown_object_in_module(self):
+-        lazy = LazyObject("test._importer_candidate", "xxx")
+-        assert_raises(ImportError, lazy.get)
+-
+-
+-class LazyDictTheory(TestTheory):
+-
+-    @staticmethod
+-    def safe_getitem(data, key):
+-        return dict.__getitem__(data, key)
+-
+-    @classmethod
+-    def assert_item_is_lazy(cls, data, key):
+-        value = cls.safe_getitem(data, key)
+-        cls.assert_is_lazy_object(value)
+-
+-    @classmethod
+-    def assert_item_is_not_lazy(cls, data, key):
+-        value = cls.safe_getitem(data, key)
+-        cls.assert_is_not_lazy_object(value)
+-
+-    @staticmethod
+-    def assert_is_lazy_object(obj):
+-        assert isinstance(obj, LazyObject)
+-
+-    @staticmethod
+-    def assert_is_not_lazy_object(obj):
+-        assert not isinstance(obj, LazyObject)
+-
+-
+-class TestLazyDict(object):
+-    theory = LazyDictTheory
+-
+-    def test_unknown_item_access__should_raise_keyerror(self):
+-        lazy_dict = LazyDict({"alice": 42})
+-        item_access = lambda key: lazy_dict[key]
+-        assert_raises(KeyError, item_access, "unknown")
+-
+-    def test_plain_item_access__should_succeed(self):
+-        theory = LazyDictTheory
+-        lazy_dict = LazyDict({"alice": 42})
+-        theory.assert_item_is_not_lazy(lazy_dict, "alice")
+-
+-        value = lazy_dict["alice"]
+-        eq_(value, 42)
+-
+-    def test_lazy_item_access__should_load_object(self):
+-        ImportModuleTheory.ensure_module_is_not_imported("inspect")
+-        lazy_dict = LazyDict({"alice": LazyObject("inspect:ismodule")})
+-        self.theory.assert_item_is_lazy(lazy_dict, "alice")
+-        self.theory.assert_item_is_lazy(lazy_dict, "alice")
+-
+-        value = lazy_dict["alice"]
+-        self.theory.assert_is_not_lazy_object(value)
+-        self.theory.assert_item_is_not_lazy(lazy_dict, "alice")
+-
+-    def test_lazy_item_access__should_fail_with_unknown_module(self):
+-        lazy_dict = LazyDict({"bob": LazyObject("__unknown_module__", "xxx")})
+-        item_access = lambda key: lazy_dict[key]
+-        assert_raises(ImportError, item_access, "bob")
+-
+-    def test_lazy_item_access__should_fail_with_unknown_object(self):
+-        lazy_dict = LazyDict({
+-            "bob": LazyObject("behave.importer", "XUnknown")
+-        })
+-        item_access = lambda key: lazy_dict[key]
+-        assert_raises(ImportError, item_access, "bob")
+diff --git a/test/_importer_candidate.py b/tests/unit/_importer_candidate.py
+similarity index 100%
+rename from test/_importer_candidate.py
+rename to tests/unit/_importer_candidate.py
+diff --git a/tests/unit/reporter/test_summary.py b/tests/unit/reporter/test_summary.py
+index d4e85b5..6b947bd 100644
+--- a/tests/unit/reporter/test_summary.py
++++ b/tests/unit/reporter/test_summary.py
+@@ -4,8 +4,6 @@ from __future__ import absolute_import, division
+ import sys
+ import pytest
+ from mock import Mock, patch
+-# NOT-NEEDED: from nose.tools import *
+-
+ from behave.model import ScenarioOutline, Scenario
+ from behave.model_core import Status
+ from behave.reporter.summary import SummaryReporter, format_summary
+diff --git a/tests/unit/tag_expression/test_tag_expression_v1_part1.py b/tests/unit/tag_expression/test_tag_expression_v1_part1.py
+index 619c710..56fb85d 100644
+--- a/tests/unit/tag_expression/test_tag_expression_v1_part1.py
++++ b/tests/unit/tag_expression/test_tag_expression_v1_part1.py
+@@ -2,7 +2,7 @@
+ 
+ from __future__ import absolute_import
+ from behave.tag_expression import TagExpression
+-from nose import tools
++import pytest
+ import unittest
+ 
+ 
+@@ -476,31 +476,34 @@ class TestTagExpressionFoo3OrNotBar4AndZap5(unittest.TestCase):
+         self.e = TagExpression(['foo:3,-bar', 'zap:5'])
+ 
+     def test_should_count_tags_for_positive_tags(self):
+-        tools.eq_(self.e.limits, {'foo': 3, 'zap': 5})
++        assert self.e.limits == {'foo': 3, 'zap': 5}
+ 
+     def test_should_match_foo_zap(self):
+         assert self.e.check(['foo', 'zap'])
+ 
++
+ class TestTagExpressionParsing(unittest.TestCase):
+     def setUp(self):
+         self.e = TagExpression([' foo:3 , -bar ', ' zap:5 '])
+ 
+     def test_should_have_limits(self):
+-        tools.eq_(self.e.limits, {'zap': 5, 'foo': 3})
++        assert self.e.limits == {'zap': 5, 'foo': 3}
++
+ 
+ class TestTagExpressionTagLimits(unittest.TestCase):
+     def test_should_be_counted_for_negative_tags(self):
+         e = TagExpression(['-todo:3'])
+-        tools.eq_(e.limits, {'todo': 3})
++        assert e.limits == {'todo': 3}
+ 
+     def test_should_be_counted_for_positive_tags(self):
+         e = TagExpression(['todo:3'])
+-        tools.eq_(e.limits, {'todo': 3})
++        assert e.limits == {'todo': 3}
+ 
+     def test_should_raise_an_error_for_inconsistent_limits(self):
+-        tools.assert_raises(Exception, TagExpression, ['todo:3', '-todo:4'])
++        with pytest.raises(Exception):
++            _ = TagExpression(['todo:3', '-todo:4'])
+ 
+     def test_should_allow_duplicate_consistent_limits(self):
+         e = TagExpression(['todo:3', '-todo:3'])
+-        tools.eq_(e.limits, {'todo': 3})
++        assert e.limits == {'todo': 3}
+ 
+diff --git a/tests/unit/tag_expression/test_tag_expression_v1_part2.py b/tests/unit/tag_expression/test_tag_expression_v1_part2.py
+index 690235b..cf619da 100644
+--- a/tests/unit/tag_expression/test_tag_expression_v1_part2.py
++++ b/tests/unit/tag_expression/test_tag_expression_v1_part2.py
+@@ -6,10 +6,11 @@ REQUIRES: Python >= 2.6, because itertools.combinations() is used.
+ """
+ 
+ from __future__ import absolute_import
+-from behave.tag_expression import TagExpression
+-from nose import tools
+ import itertools
+ from six.moves import range
++import pytest
++from behave.tag_expression import TagExpression
++
+ 
+ has_combinations = hasattr(itertools, "combinations")
+ if has_combinations:
+@@ -31,6 +32,7 @@ if has_combinations:
+             return "@" + " @".join(tags)
+         return NO_TAGS
+ 
++
+     TestCase = object
+     # ----------------------------------------------------------------------------
+     # TEST: all_combinations() test helper
+@@ -45,8 +47,8 @@ if has_combinations:
+                 ('@one', '@two'),
+             ]
+             actual = all_combinations(items)
+-            tools.eq_(actual, expected)
+-            tools.eq_(len(actual), 4)
++            assert actual == expected
++            assert len(actual) == 4
+ 
+         def test_all_combinations_with_3values(self):
+             items = "@one @two @three".split()
+@@ -61,8 +63,8 @@ if has_combinations:
+                 ('@one', '@two', '@three'),
+             ]
+             actual = all_combinations(items)
+-            tools.eq_(actual, expected)
+-            tools.eq_(len(actual), 8)
++            assert actual == expected
++            assert len(actual) == 8
+ 
+ 
+     # ----------------------------------------------------------------------------
+@@ -74,13 +76,13 @@ if has_combinations:
+                                           tag_combinations, expected):
+             matched = [ make_tags_line(c) for c in tag_combinations
+                                 if tag_expression.check(c) ]
+-            tools.eq_(matched, expected)
++            assert matched == expected
+ 
+         def assert_tag_expression_mismatches(self, tag_expression,
+                                             tag_combinations, expected):
+             mismatched = [ make_tags_line(c) for c in tag_combinations
+                                 if not tag_expression.check(c) ]
+-            tools.eq_(mismatched, expected)
++            assert mismatched == expected
+ 
+ 
+     class TestTagExpressionWith1Term(TagExpressionTestCase):
+diff --git a/test/test_ansi_escapes.py b/tests/unit/test_ansi_escapes.py
+similarity index 84%
+rename from test/test_ansi_escapes.py
+rename to tests/unit/test_ansi_escapes.py
+index 77564fd..969f3a9 100644
+--- a/test/test_ansi_escapes.py
++++ b/tests/unit/test_ansi_escapes.py
+@@ -7,7 +7,7 @@
+ #   W0621   Redefining name ... from outer scope
+ 
+ from __future__ import absolute_import
+-from nose import tools
++import pytest
+ from behave.formatter import ansi_escapes
+ import unittest
+ from six.moves import range
+@@ -44,30 +44,30 @@ class StripEscapesTest(unittest.TestCase):
+ 
+     def test_should_return_same_text_without_escapes(self):
+         for text in self.TEXTS:
+-            tools.eq_(text, ansi_escapes.strip_escapes(text))
++            assert text == ansi_escapes.strip_escapes(text)
+ 
+     def test_should_return_empty_string_for_any_ansi_escape(self):
+         # XXX-JE-CHECK-PY23: If list() is really needed.
+         for text in list(ansi_escapes.colors.values()):
+-            tools.eq_("", ansi_escapes.strip_escapes(text))
++            assert "" == ansi_escapes.strip_escapes(text)
+         for text in list(ansi_escapes.escapes.values()):
+-            tools.eq_("", ansi_escapes.strip_escapes(text))
++            assert "" == ansi_escapes.strip_escapes(text)
+ 
+ 
+     def test_should_strip_color_escapes_from_text(self):
+         for text in self.TEXTS:
+             colored_text = self.colorize_text(text, self.ALL_COLORS)
+-            tools.eq_(text, ansi_escapes.strip_escapes(colored_text))
++            assert text == ansi_escapes.strip_escapes(colored_text)
+             self.assertNotEqual(text, colored_text)
+ 
+             for color in self.ALL_COLORS:
+                 colored_text = self.colorize(text, color)
+-                tools.eq_(text, ansi_escapes.strip_escapes(colored_text))
++                assert text == ansi_escapes.strip_escapes(colored_text)
+                 self.assertNotEqual(text, colored_text)
+ 
+     def test_should_strip_cursor_up_escapes_from_text(self):
+         for text in self.TEXTS:
+             for cursor_up in self.CURSOR_UPS:
+                 colored_text = cursor_up + text + ansi_escapes.escapes["reset"]
+-                tools.eq_(text, ansi_escapes.strip_escapes(colored_text))
++                assert text == ansi_escapes.strip_escapes(colored_text)
+                 self.assertNotEqual(text, colored_text)
+diff --git a/test/test_configuration.py b/tests/unit/test_configuration.py
+similarity index 72%
+rename from test/test_configuration.py
+rename to tests/unit/test_configuration.py
+index e6828e3..c96cf63 100644
+--- a/test/test_configuration.py
++++ b/tests/unit/test_configuration.py
+@@ -2,7 +2,7 @@ import os.path
+ import sys
+ import tempfile
+ import six
+-from nose.tools import *
++import pytest
+ from behave import configuration
+ from behave.configuration import Configuration, UserData
+ from unittest import TestCase
+@@ -36,6 +36,7 @@ if sys.platform.startswith("win"):
+         ROOTDIR_PREFIX_DEFAULT = ROOTDIR_PREFIX_DEFAULT.lower()
+     ROOTDIR_PREFIX = os.environ.get("BEHAVE_ROOTDIR_PREFIX", ROOTDIR_PREFIX_DEFAULT)
+ 
++
+ class TestConfiguration(object):
+ 
+     def test_read_file(self):
+@@ -46,19 +47,19 @@ class TestConfiguration(object):
+ 
+         # -- WINDOWS-REQUIRES: normpath
+         d = configuration.read_configuration(tn)
+-        eq_(d["outfiles"], [
++        assert d["outfiles"] ==[
+             os.path.normpath(ROOTDIR_PREFIX + "/absolute/path1"),
+             os.path.normpath(os.path.join(tndir, "relative/path2")),
+-        ])
+-        eq_(d["paths"], [
++        ]
++        assert d["paths"] == [
+             os.path.normpath(ROOTDIR_PREFIX + "/absolute/path3"),
+             os.path.normpath(os.path.join(tndir, "relative/path4")),
+-            ])
+-        eq_(d["format"], ["pretty", "tag-counter"])
+-        eq_(d["default_tags"], ["@foo,~@bar", "@zap"])
+-        eq_(d["stdout_capture"], False)
+-        ok_("bogus" not in d)
+-        eq_(d["userdata"], {"foo": "bar", "answer": "42"})
++            ]
++        assert d["format"] == ["pretty", "tag-counter"]
++        assert d["default_tags"] == ["@foo,~@bar", "@zap"]
++        assert d["stdout_capture"] == False
++        assert "bogus" not in d
++        assert d["userdata"] == {"foo": "bar", "answer": "42"}
+ 
+     def ensure_stage_environment_is_not_set(self):
+         if "BEHAVE_STAGE" in os.environ:
+@@ -69,26 +70,26 @@ class TestConfiguration(object):
+         self.ensure_stage_environment_is_not_set()
+         assert "BEHAVE_STAGE" not in os.environ
+         config = Configuration("")
+-        eq_("steps", config.steps_dir)
+-        eq_("environment.py", config.environment_file)
++        assert "steps" == config.steps_dir
++        assert "environment.py" == config.environment_file
+ 
+     def test_settings_with_stage(self):
+         config = Configuration(["--stage=STAGE1"])
+-        eq_("STAGE1_steps", config.steps_dir)
+-        eq_("STAGE1_environment.py", config.environment_file)
++        assert "STAGE1_steps" == config.steps_dir
++        assert "STAGE1_environment.py" == config.environment_file
+ 
+     def test_settings_with_stage_and_envvar(self):
+         os.environ["BEHAVE_STAGE"] = "STAGE2"
+         config = Configuration(["--stage=STAGE1"])
+-        eq_("STAGE1_steps", config.steps_dir)
+-        eq_("STAGE1_environment.py", config.environment_file)
++        assert "STAGE1_steps" == config.steps_dir
++        assert "STAGE1_environment.py" == config.environment_file
+         del os.environ["BEHAVE_STAGE"]
+ 
+     def test_settings_with_stage_from_envvar(self):
+         os.environ["BEHAVE_STAGE"] = "STAGE2"
+         config = Configuration("")
+-        eq_("STAGE2_steps", config.steps_dir)
+-        eq_("STAGE2_environment.py", config.environment_file)
++        assert "STAGE2_steps" == config.steps_dir
++        assert "STAGE2_environment.py" == config.environment_file
+         del os.environ["BEHAVE_STAGE"]
+ 
+ 
+@@ -101,33 +102,33 @@ class TestConfigurationUserData(TestCase):
+             "--define=bar=bar_value",
+             "--define", "baz=BAZ_VALUE",
+         ])
+-        eq_("foo_value", config.userdata["foo"])
+-        eq_("bar_value", config.userdata["bar"])
+-        eq_("BAZ_VALUE", config.userdata["baz"])
++        assert "foo_value" == config.userdata["foo"]
++        assert "bar_value" == config.userdata["bar"]
++        assert "BAZ_VALUE" == config.userdata["baz"]
+ 
+     def test_cmdline_defines_override_configfile(self):
+         userdata_init = {"foo": "XXX", "bar": "ZZZ", "baz": 42}
+         config = Configuration(
+                     "-D foo=foo_value --define bar=123",
+                     load_config=False, userdata=userdata_init)
+-        eq_("foo_value", config.userdata["foo"])
+-        eq_("123", config.userdata["bar"])
+-        eq_(42, config.userdata["baz"])
++        assert "foo_value" == config.userdata["foo"]
++        assert "123" == config.userdata["bar"]
++        assert 42 == config.userdata["baz"]
+ 
+     def test_cmdline_defines_without_value_are_true(self):
+         config = Configuration("-D foo --define bar -Dbaz")
+-        eq_("true", config.userdata["foo"])
+-        eq_("true", config.userdata["bar"])
+-        eq_("true", config.userdata["baz"])
+-        eq_(True, config.userdata.getbool("foo"))
++        assert "true" == config.userdata["foo"]
++        assert "true" == config.userdata["bar"]
++        assert "true" == config.userdata["baz"]
++        assert True == config.userdata.getbool("foo")
+ 
+     def test_cmdline_defines_with_empty_value(self):
+         config = Configuration("-D foo=")
+-        eq_("", config.userdata["foo"])
++        assert "" == config.userdata["foo"]
+ 
+     def test_cmdline_defines_with_assign_character_as_value(self):
+         config = Configuration("-D foo=bar=baz")
+-        eq_("bar=baz", config.userdata["foo"])
++        assert "bar=baz" == config.userdata["foo"]
+ 
+     def test_cmdline_defines__with_quoted_name_value_pair(self):
+         cmdlines = [
+@@ -136,7 +137,7 @@ class TestConfigurationUserData(TestCase):
+         ]
+         for cmdline in cmdlines:
+             config = Configuration(cmdline, load_config=False)
+-            eq_(config.userdata, dict(person="Alice and Bob"))
++            assert config.userdata == dict(person="Alice and Bob")
+ 
+     def test_cmdline_defines__with_quoted_value(self):
+         cmdlines = [
+@@ -145,7 +146,7 @@ class TestConfigurationUserData(TestCase):
+         ]
+         for cmdline in cmdlines:
+             config = Configuration(cmdline, load_config=False)
+-            eq_(config.userdata, dict(person="Alice and Bob"))
++            assert config.userdata == dict(person="Alice and Bob")
+ 
+     def test_setup_userdata(self):
+         config = Configuration("", load_config=False)
+@@ -154,7 +155,7 @@ class TestConfigurationUserData(TestCase):
+         config.setup_userdata()
+ 
+         expected_data = dict(person1="Alice", person2="Charly")
+-        eq_(config.userdata, expected_data)
++        assert config.userdata == expected_data
+ 
+     def test_update_userdata__with_cmdline_defines(self):
+         # -- NOTE: cmdline defines are reapplied.
+@@ -163,8 +164,8 @@ class TestConfigurationUserData(TestCase):
+         config.update_userdata(dict(person1="Alice", person2="Bob"))
+ 
+         expected_data = dict(person1="Alice", person2="Bea", person3="Charly")
+-        eq_(config.userdata, expected_data)
+-        eq_(config.userdata_defines, [("person2", "Bea")])
++        assert config.userdata == expected_data
++        assert config.userdata_defines == [("person2", "Bea")]
+ 
+     def test_update_userdata__without_cmdline_defines(self):
+         config = Configuration("", load_config=False)
+@@ -172,5 +173,5 @@ class TestConfigurationUserData(TestCase):
+         config.update_userdata(dict(person1="Alice", person2="Bob"))
+ 
+         expected_data = dict(person1="Alice", person2="Bob", person3="Charly")
+-        eq_(config.userdata, expected_data)
+-        self.assertFalse(config.userdata_defines)
++        assert config.userdata == expected_data
++        assert config.userdata_defines is None
+diff --git a/test/test_formatter.py b/tests/unit/test_formatter.py
+similarity index 94%
+rename from test/test_formatter.py
+rename to tests/unit/test_formatter.py
+index 42e5f0d..c1a0945 100644
+--- a/test/test_formatter.py
++++ b/tests/unit/test_formatter.py
+@@ -6,9 +6,8 @@ import sys
+ import tempfile
+ import unittest
+ import six
++import pytest
+ from mock import Mock, patch
+-from nose.tools import *    # pylint: disable=wildcard-import, unused-wildcard-import
+-
+ from behave.formatter._registry import make_formatters
+ from behave.formatter import pretty
+ from behave.formatter.base import StreamOpener
+@@ -35,7 +34,7 @@ class TestGetTerminalSize(unittest.TestCase):
+         platform = sys.platform
+         sys.platform = "windows"
+ 
+-        eq_(pretty.get_terminal_size(), (80, 24))
++        assert pretty.get_terminal_size() == (80, 24)
+ 
+         sys.platform = platform
+ 
+@@ -46,7 +45,7 @@ class TestGetTerminalSize(unittest.TestCase):
+         except ImportError:
+             pass
+ 
+-        eq_(pretty.get_terminal_size(), (80, 24))
++        assert pretty.get_terminal_size() == (80, 24)
+ 
+     def test_exception_in_ioctl(self):
+         try:
+@@ -59,7 +58,7 @@ class TestGetTerminalSize(unittest.TestCase):
+ 
+         self.ioctl.side_effect = raiser
+ 
+-        eq_(pretty.get_terminal_size(), (80, 24))
++        assert pretty.get_terminal_size() == (80, 24)
+         self.ioctl.assert_called_with(0, termios.TIOCGWINSZ, self.zero_struct)
+ 
+     def test_happy_path(self):
+@@ -70,7 +69,7 @@ class TestGetTerminalSize(unittest.TestCase):
+ 
+         self.ioctl.return_value = struct.pack("HHHH", 17, 23, 5, 5)
+ 
+-        eq_(pretty.get_terminal_size(), (23, 17))
++        assert pretty.get_terminal_size() == (23, 17)
+         self.ioctl.assert_called_with(0, termios.TIOCGWINSZ, self.zero_struct)
+ 
+     def test_zero_size_fallback(self):
+@@ -81,7 +80,7 @@ class TestGetTerminalSize(unittest.TestCase):
+ 
+         self.ioctl.return_value = self.zero_struct
+ 
+-        eq_(pretty.get_terminal_size(), (80, 24))
++        assert pretty.get_terminal_size() == (80, 24)
+         self.ioctl.assert_called_with(0, termios.TIOCGWINSZ, self.zero_struct)
+ 
+ 
+@@ -204,7 +203,7 @@ class TestTagsCount(FormatterTests):
+         p.feature(f)
+         p.scenario(s)
+ 
+-        eq_(p.tag_counts, {"ham": [f, s], "spam": [f], "foo": [s]})
++        assert p.tag_counts == {"ham": [f, s], "spam": [f], "foo": [s]}
+ 
+ 
+ class MultipleFormattersTests(FormatterTests):
+diff --git a/test/test_formatter_progress.py b/tests/unit/test_formatter_progress.py
+similarity index 99%
+rename from test/test_formatter_progress.py
+rename to tests/unit/test_formatter_progress.py
+index 29c8e68..19cdf64 100644
+--- a/test/test_formatter_progress.py
++++ b/tests/unit/test_formatter_progress.py
+@@ -9,6 +9,7 @@ from __future__ import absolute_import
+ from .test_formatter import FormatterTests as FormatterTest
+ from .test_formatter import MultipleFormattersTests as MultipleFormattersTest
+ 
++
+ class TestScenarioProgressFormatter(FormatterTest):
+     formatter_name = "progress"
+ 
+@@ -20,20 +21,26 @@ class TestStepProgressFormatter(FormatterTest):
+ class TestPrettyAndScenarioProgress(MultipleFormattersTest):
+     formatters = ['pretty', 'progress']
+ 
++
+ class TestPlainAndScenarioProgress(MultipleFormattersTest):
+     formatters = ['plain', 'progress']
+ 
++
+ class TestJSONAndScenarioProgress(MultipleFormattersTest):
+     formatters = ['json', 'progress']
+ 
++
+ class TestPrettyAndStepProgress(MultipleFormattersTest):
+     formatters = ['pretty', 'progress2']
+ 
++
+ class TestPlainAndStepProgress(MultipleFormattersTest):
+     formatters = ['plain', 'progress2']
+ 
++
+ class TestJSONAndStepProgress(MultipleFormattersTest):
+     formatters = ['json', 'progress2']
+ 
++
+ class TestScenarioProgressAndStepProgress(MultipleFormattersTest):
+     formatters = ['progress', 'progress2']
+diff --git a/test/test_formatter_rerun.py b/tests/unit/test_formatter_rerun.py
+similarity index 94%
+rename from test/test_formatter_rerun.py
+rename to tests/unit/test_formatter_rerun.py
+index 6357f92..154588f 100644
+--- a/test/test_formatter_rerun.py
++++ b/tests/unit/test_formatter_rerun.py
+@@ -8,7 +8,7 @@ from __future__ import absolute_import
+ from behave.model_core import Status
+ from .test_formatter import FormatterTests as FormatterTest, _tf
+ from .test_formatter import MultipleFormattersTests as MultipleFormattersTest
+-from nose.tools import *
++
+ 
+ class TestRerunFormatter(FormatterTest):
+     formatter_name = "rerun"
+@@ -26,7 +26,7 @@ class TestRerunFormatter(FormatterTest):
+             p.scenario(scenario)
+             assert scenario.status == Status.passed
+         p.eof()
+-        eq_([], p.failed_scenarios)
++        assert [] == p.failed_scenarios
+         # -- EMIT REPORT:
+         p.close()
+ 
+@@ -49,7 +49,7 @@ class TestRerunFormatter(FormatterTest):
+         assert scenarios[0].status == Status.passed
+         assert scenarios[1].status == Status.failed
+         p.eof()
+-        eq_([ failing_scenario ], p.failed_scenarios)
++        assert [ failing_scenario ] == p.failed_scenarios
+         # -- EMIT REPORT:
+         p.close()
+ 
+@@ -76,7 +76,7 @@ class TestRerunFormatter(FormatterTest):
+         assert scenarios[1].status == Status.passed
+         assert scenarios[2].status == Status.failed
+         p.eof()
+-        eq_([ failing_scenario1, failing_scenario2 ], p.failed_scenarios)
++        assert [ failing_scenario1, failing_scenario2 ] == p.failed_scenarios
+         # -- EMIT REPORT:
+         p.close()
+ 
+@@ -84,14 +84,18 @@ class TestRerunFormatter(FormatterTest):
+ class TestRerunAndPrettyFormatters(MultipleFormattersTest):
+     formatters = ["rerun", "pretty"]
+ 
++
+ class TestRerunAndPlainFormatters(MultipleFormattersTest):
+     formatters = ["rerun", "plain"]
+ 
++
+ class TestRerunAndScenarioProgressFormatters(MultipleFormattersTest):
+     formatters = ["rerun", "progress"]
+ 
++
+ class TestRerunAndStepProgressFormatters(MultipleFormattersTest):
+     formatters = ["rerun", "progress2"]
+ 
++
+ class TestRerunAndJsonFormatter(MultipleFormattersTest):
+     formatters = ["rerun", "json"]
+diff --git a/test/test_formatter_tags.py b/tests/unit/test_formatter_tags.py
+similarity index 99%
+rename from test/test_formatter_tags.py
+rename to tests/unit/test_formatter_tags.py
+index 5125d51..9f95374 100644
+--- a/test/test_formatter_tags.py
++++ b/tests/unit/test_formatter_tags.py
+@@ -9,12 +9,14 @@ from __future__ import absolute_import
+ from .test_formatter import FormatterTests as FormatterTest
+ from .test_formatter import MultipleFormattersTests as MultipleFormattersTest
+ 
++
+ # -----------------------------------------------------------------------------
+ # FORMATTER TESTS: With TagCountFormatter
+ # -----------------------------------------------------------------------------
+ class TestTagsCountFormatter(FormatterTest):
+     formatter_name = "tags"
+ 
++
+ # -----------------------------------------------------------------------------
+ # FORMATTER TESTS: With TagLocationFormatter
+ # -----------------------------------------------------------------------------
+@@ -28,12 +30,15 @@ class TestTagsLocationFormatter(FormatterTest):
+ class TestPrettyAndTagsCount(MultipleFormattersTest):
+     formatters = ["pretty", "tags"]
+ 
++
+ class TestPlainAndTagsCount(MultipleFormattersTest):
+     formatters = ["plain", "tags"]
+ 
++
+ class TestJSONAndTagsCount(MultipleFormattersTest):
+     formatters = ["json", "tags"]
+ 
++
+ class TestRerunAndTagsCount(MultipleFormattersTest):
+     formatters = ["rerun", "tags"]
+ 
+@@ -44,14 +49,18 @@ class TestRerunAndTagsCount(MultipleFormattersTest):
+ class TestPrettyAndTagsLocation(MultipleFormattersTest):
+     formatters = ["pretty", "tags.location"]
+ 
++
+ class TestPlainAndTagsLocation(MultipleFormattersTest):
+     formatters = ["plain", "tags.location"]
+ 
++
+ class TestJSONAndTagsLocation(MultipleFormattersTest):
+     formatters = ["json", "tags.location"]
+ 
++
+ class TestRerunAndTagsLocation(MultipleFormattersTest):
+     formatters = ["rerun", "tags.location"]
+ 
++
+ class TestTagsCountAndTagsLocation(MultipleFormattersTest):
+     formatters = ["tags", "tags.location"]
+diff --git a/tests/unit/test_importer.py b/tests/unit/test_importer.py
+index f3f4e2c..055b9fb 100644
+--- a/tests/unit/test_importer.py
++++ b/tests/unit/test_importer.py
+@@ -62,7 +62,7 @@ class TestLoadModule(object):
+         self.theory.assert_module_is_imported(module_name)
+ 
+     def test_load_module__should_succeed_for_existing_module(self):
+-        module_name = "test._importer_candidate"
++        module_name = "tests.unit._importer_candidate"
+         self.theory.ensure_module_is_not_imported(module_name)
+ 
+         module = load_module(module_name)
+diff --git a/test/test_log_capture.py b/tests/unit/test_log_capture.py
+similarity index 87%
+rename from test/test_log_capture.py
+rename to tests/unit/test_log_capture.py
+index bfdbed7..bf1874c 100644
+--- a/test/test_log_capture.py
++++ b/tests/unit/test_log_capture.py
+@@ -1,11 +1,10 @@
+ from __future__ import absolute_import, with_statement
+-
+-from nose.tools import *
++import pytest
+ from mock import patch
+-
+ from behave.log_capture import LoggingCapture
+ from six.moves import range
+ 
++
+ class TestLogCapture(object):
+     def test_get_value_returns_all_log_records(self):
+         class FakeConfig(object):
+@@ -23,7 +22,7 @@ class TestLogCapture(object):
+             format.return_value = 'foo'
+             expected = '\n'.join(['foo'] * len(fake_records))
+ 
+-            eq_(handler.getvalue(), expected)
++            assert handler.getvalue() == expected
+ 
+             calls = [args[0][0] for args in format.call_args_list]
+-            eq_(calls, fake_records)
++            assert calls == fake_records
+diff --git a/test/test_matchers.py b/tests/unit/test_matchers.py
+similarity index 93%
+rename from test/test_matchers.py
+rename to tests/unit/test_matchers.py
+index bfe04fc..815581c 100644
+--- a/test/test_matchers.py
++++ b/tests/unit/test_matchers.py
+@@ -1,7 +1,7 @@
+ # -*- coding: UTF-8 -*-
+ from __future__ import absolute_import, with_statement
++import pytest
+ from mock import Mock, patch
+-from nose.tools import *  # pylint: disable=wildcard-import, unused-wildcard-import
+ import parse
+ from behave.matchers import Match, Matcher, ParseMatcher, RegexMatcher, \
+     SimplifiedRegexMatcher, CucumberRegexMatcher
+@@ -80,7 +80,7 @@ class TestParseMatcher(object):
+             assert m.func is func
+             args = m.arguments
+             have = [(a.start, a.end, a.original, a.value, a.name) for a in args]
+-            eq_(have, expected)
++            assert have == expected
+ 
+     def test_named_arguments(self):
+         text = "has a {string}, an {integer:d} and a {decimal:f}"
+@@ -89,11 +89,11 @@ class TestParseMatcher(object):
+ 
+         m = matcher.match("has a foo, an 11 and a 3.14159")
+         m.run(context)
+-        eq_(self.recorded_args, ((context,), {
++        assert self.recorded_args, ((context,) == {
+             'string': 'foo',
+             'integer': 11,
+             'decimal': 3.14159
+-        }))
++        })
+ 
+     def test_positional_arguments(self):
+         text = "has a {}, an {:d} and a {:f}"
+@@ -102,7 +102,7 @@ class TestParseMatcher(object):
+ 
+         m = matcher.match("has a foo, an 11 and a 3.14159")
+         m.run(context)
+-        eq_(self.recorded_args, ((context, 'foo', 11, 3.14159), {}))
++        assert self.recorded_args == ((context, 'foo', 11, 3.14159), {})
+ 
+ class TestRegexMatcher(object):
+     # pylint: disable=invalid-name, no-self-use
+@@ -151,7 +151,7 @@ class TestRegexMatcher(object):
+         assert m.func is func
+         args = m.arguments
+         have = [(a.start, a.end, a.original, a.value, a.name) for a in args]
+-        eq_(have, expected)
++        assert have == expected
+ 
+ 
+ 
+@@ -179,17 +179,17 @@ class TestSimplifiedRegexMatcher(TestRegexMatcher):
+         assert isinstance(matched1, Match)
+         assert isinstance(matched2, Match)
+ 
+-    @raises(AssertionError)
+     def test_step_should_not_use_regex_begin_marker(self):
+-        SimplifiedRegexMatcher(None, "^I do something")
++        with pytest.raises(AssertionError):
++            SimplifiedRegexMatcher(None, "^I do something")
+ 
+-    @raises(AssertionError)
+     def test_step_should_not_use_regex_end_marker(self):
+-        SimplifiedRegexMatcher(None, "I do something$")
++        with pytest.raises(AssertionError):
++            SimplifiedRegexMatcher(None, "I do something$")
+ 
+-    @raises(AssertionError)
+     def test_step_should_not_use_regex_begin_and_end_marker(self):
+-        SimplifiedRegexMatcher(None, "^I do something$")
++        with pytest.raises(AssertionError):
++            SimplifiedRegexMatcher(None, "^I do something$")
+ 
+ 
+ class TestCucumberRegexMatcher(TestRegexMatcher):
+diff --git a/tests/unit/test_parser.py b/tests/unit/test_parser.py
+index 5603a4b..ecbb1bf 100644
+--- a/tests/unit/test_parser.py
++++ b/tests/unit/test_parser.py
+@@ -7,7 +7,6 @@ Unit tests for Gherkin parser: :mod:`behave.parser`.
+ from __future__ import absolute_import, print_function
+ import pytest
+ from behave import i18n, model, parser
+-# NOT-NEEDED: from nose.tools import *
+ 
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/test/test_runner.py b/tests/unit/test_runner.py
+similarity index 82%
+rename from test/test_runner.py
+rename to tests/unit/test_runner.py
+index 6647283..030dffa 100644
+--- a/test/test_runner.py
++++ b/tests/unit/test_runner.py
+@@ -11,10 +11,8 @@ import tempfile
+ import unittest
+ import six
+ from six import StringIO
+-
++import pytest
+ from mock import Mock, patch
+-from nose.tools import *  # pylint: disable=wildcard-import, unused-wildcard-import
+-
+ from behave import runner_util
+ from behave.model import Table
+ from behave.step_registry import StepRegistry
+@@ -39,31 +37,31 @@ class TestContext(unittest.TestCase):
+     def test_user_mode_shall_restore_behave_mode(self):
+         # -- CASE: No exception is raised.
+         initial_mode = runner.Context.BEHAVE
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+         with self.context.use_with_user_mode():
+-            eq_(self.context._mode, runner.Context.USER)
++            assert self.context._mode == runner.Context.USER
+             self.context.thing = "stuff"
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+ 
+     def test_user_mode_shall_restore_behave_mode_if_assert_fails(self):
+         initial_mode = runner.Context.BEHAVE
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+         try:
+             with self.context.use_with_user_mode():
+-                eq_(self.context._mode, runner.Context.USER)
++                assert self.context._mode == runner.Context.USER
+                 assert False, "XFAIL"
+         except AssertionError:
+-            eq_(self.context._mode, initial_mode)
++            assert self.context._mode == initial_mode
+ 
+     def test_user_mode_shall_restore_behave_mode_if_exception_is_raised(self):
+         initial_mode = runner.Context.BEHAVE
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+         try:
+             with self.context.use_with_user_mode():
+-                eq_(self.context._mode, runner.Context.USER)
++                assert self.context._mode == runner.Context.USER
+                 raise RuntimeError("XFAIL")
+         except RuntimeError:
+-            eq_(self.context._mode, initial_mode)
++            assert self.context._mode == initial_mode
+ 
+     def test_use_with_user_mode__shall_restore_initial_mode(self):
+         # -- CASE: No exception is raised.
+@@ -71,9 +69,9 @@ class TestContext(unittest.TestCase):
+         initial_mode = runner.Context.BEHAVE
+         self.context._mode = initial_mode
+         with self.context.use_with_user_mode():
+-            eq_(self.context._mode, runner.Context.USER)
++            assert self.context._mode == runner.Context.USER
+             self.context.thing = "stuff"
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+ 
+     def test_use_with_user_mode__shall_restore_initial_mode_with_error(self):
+         # -- CASE: Exception is raised.
+@@ -82,10 +80,10 @@ class TestContext(unittest.TestCase):
+         self.context._mode = initial_mode
+         try:
+             with self.context.use_with_user_mode():
+-                eq_(self.context._mode, runner.Context.USER)
++                assert self.context._mode == runner.Context.USER
+                 raise RuntimeError("XFAIL")
+         except RuntimeError:
+-            eq_(self.context._mode, initial_mode)
++            assert self.context._mode == initial_mode
+ 
+     def test_use_with_behave_mode__shall_restore_initial_mode(self):
+         # -- CASE: No exception is raised.
+@@ -93,9 +91,9 @@ class TestContext(unittest.TestCase):
+         initial_mode = runner.Context.USER
+         self.context._mode = initial_mode
+         with self.context._use_with_behave_mode():
+-            eq_(self.context._mode, runner.Context.BEHAVE)
++            assert self.context._mode == runner.Context.BEHAVE
+             self.context.thing = "stuff"
+-        eq_(self.context._mode, initial_mode)
++        assert self.context._mode == initial_mode
+ 
+     def test_use_with_behave_mode__shall_restore_initial_mode_with_error(self):
+         # -- CASE: Exception is raised.
+@@ -104,22 +102,22 @@ class TestContext(unittest.TestCase):
+         self.context._mode = initial_mode
+         try:
+             with self.context._use_with_behave_mode():
+-                eq_(self.context._mode, runner.Context.BEHAVE)
++                assert self.context._mode == runner.Context.BEHAVE
+                 raise RuntimeError("XFAIL")
+         except RuntimeError:
+-            eq_(self.context._mode, initial_mode)
++            assert self.context._mode == initial_mode
+ 
+     def test_context_contains(self):
+-        eq_("thing" in self.context, False)
++        assert "thing" not in self.context
+         self.context.thing = "stuff"
+-        eq_("thing" in self.context, True)
++        assert "thing" in self.context
+         self.context._push()
+-        eq_("thing" in self.context, True)
++        assert "thing" in self.context
+ 
+     def test_attribute_set_at_upper_level_visible_at_lower_level(self):
+         self.context.thing = "stuff"
+         self.context._push()
+-        eq_(self.context.thing, "stuff")
++        assert self.context.thing == "stuff"
+ 
+     def test_attribute_set_at_lower_level_not_visible_at_upper_level(self):
+         self.context._push()
+@@ -130,16 +128,16 @@ class TestContext(unittest.TestCase):
+     def test_attributes_set_at_upper_level_visible_at_lower_level(self):
+         self.context.thing = "stuff"
+         self.context._push()
+-        eq_(self.context.thing, "stuff")
++        assert self.context.thing == "stuff"
+         self.context.other_thing = "more stuff"
+         self.context._push()
+-        eq_(self.context.thing, "stuff")
+-        eq_(self.context.other_thing, "more stuff")
++        assert self.context.thing == "stuff"
++        assert self.context.other_thing == "more stuff"
+         self.context.third_thing = "wombats"
+         self.context._push()
+-        eq_(self.context.thing, "stuff")
+-        eq_(self.context.other_thing, "more stuff")
+-        eq_(self.context.third_thing, "wombats")
++        assert self.context.thing == "stuff"
++        assert self.context.other_thing == "more stuff"
++        assert self.context.third_thing == "wombats"
+ 
+     def test_attributes_set_at_lower_level_not_visible_at_upper_level(self):
+         self.context.thing = "stuff"
+@@ -149,17 +147,17 @@ class TestContext(unittest.TestCase):
+ 
+         self.context._push()
+         self.context.third_thing = "wombats"
+-        eq_(self.context.thing, "stuff")
+-        eq_(self.context.other_thing, "more stuff")
+-        eq_(self.context.third_thing, "wombats")
++        assert self.context.thing == "stuff"
++        assert self.context.other_thing == "more stuff"
++        assert self.context.third_thing == "wombats"
+ 
+         self.context._pop()
+-        eq_(self.context.thing, "stuff")
+-        eq_(self.context.other_thing, "more stuff")
++        assert self.context.thing == "stuff"
++        assert self.context.other_thing == "more stuff"
+         assert getattr(self.context, "third_thing", None) is None, "%s is not None" % self.context.third_thing
+ 
+         self.context._pop()
+-        eq_(self.context.thing, "stuff")
++        assert self.context.thing == "stuff"
+         assert getattr(self.context, "other_thing", None) is None, "%s is not None" % self.context.other_thing
+         assert getattr(self.context, "third_thing", None) is None, "%s is not None" % self.context.third_thing
+ 
+@@ -270,21 +268,22 @@ class TestContext(unittest.TestCase):
+         assert filename in info, "%r not in %r" % (filename, info)
+ 
+     def test_context_deletable(self):
+-        eq_("thing" in self.context, False)
++        assert "thing" not in self.context
+         self.context.thing = "stuff"
+-        eq_("thing" in self.context, True)
++        assert "thing" in self.context
+         del self.context.thing
+-        eq_("thing" in self.context, False)
++        assert "thing" not in self.context
+ 
+-    @raises(AttributeError)
++    # OLD: @raises(AttributeError)
+     def test_context_deletable_raises(self):
+         # pylint: disable=protected-access
+-        eq_("thing" in self.context, False)
++        assert "thing" not in self.context
+         self.context.thing = "stuff"
+-        eq_("thing" in self.context, True)
++        assert "thing" in self.context
+         self.context._push()
+-        eq_("thing" in self.context, True)
+-        del self.context.thing
++        assert "thing" in self.context
++        with pytest.raises(AttributeError):
++            del self.context.thing
+ 
+ 
+ class ExampleSteps(object):
+@@ -362,7 +361,7 @@ Then a step passes
+ """.lstrip()
+         with patch("behave.step_registry.registry", self.step_registry):
+             result = self.context.execute_steps(doc)
+-            eq_(result, True)
++            assert result is True
+ 
+     def test_execute_steps_with_failing_step(self):
+         doc = u"""
+@@ -374,7 +373,7 @@ Then a step passes
+             try:
+                 result = self.context.execute_steps(doc)
+             except AssertionError as e:
+-                ok_("FAILED SUB-STEP: When a step fails" in _text(e))
++                assert "FAILED SUB-STEP: When a step fails" in _text(e)
+ 
+     def test_execute_steps_with_undefined_step(self):
+         doc = u"""
+@@ -386,7 +385,7 @@ Then a step passes
+             try:
+                 result = self.context.execute_steps(doc)
+             except AssertionError as e:
+-                ok_("UNDEFINED SUB-STEP: When a step is undefined" in _text(e))
++                assert "UNDEFINED SUB-STEP: When a step is undefined" in _text(e)
+ 
+     def test_execute_steps_with_text(self):
+         doc = u'''
+@@ -401,8 +400,8 @@ Then a step passes
+         with patch("behave.step_registry.registry", self.step_registry):
+             result = self.context.execute_steps(doc)
+             expected_text = "Lorem ipsum\nIpsum lorem"
+-            eq_(result, True)
+-            eq_(expected_text, ExampleSteps.text)
++            assert result is True
++            assert expected_text == ExampleSteps.text
+ 
+     def test_execute_steps_with_table(self):
+         doc = u"""
+@@ -419,8 +418,8 @@ Then a step passes
+                     [u"Alice", u"12"],
+                     [u"Bob",   u"23"],
+             ])
+-            eq_(result, True)
+-            eq_(expected_table, ExampleSteps.table)
++            assert result is True
++            assert expected_table == ExampleSteps.table
+ 
+     def test_context_table_is_restored_after_execute_steps_without_table(self):
+         doc = u"""
+@@ -431,7 +430,7 @@ Then a step passes
+             original_table = "<ORIGINAL_TABLE>"
+             self.context.table = original_table
+             self.context.execute_steps(doc)
+-            eq_(self.context.table, original_table)
++            assert self.context.table == original_table
+ 
+     def test_context_table_is_restored_after_execute_steps_with_table(self):
+         doc = u"""
+@@ -445,7 +444,7 @@ Then a step passes
+             original_table = "<ORIGINAL_TABLE>"
+             self.context.table = original_table
+             self.context.execute_steps(doc)
+-            eq_(self.context.table, original_table)
++            assert self.context.table == original_table
+ 
+     def test_context_text_is_restored_after_execute_steps_without_text(self):
+         doc = u"""
+@@ -456,7 +455,7 @@ Then a step passes
+             original_text = "<ORIGINAL_TEXT>"
+             self.context.text = original_text
+             self.context.execute_steps(doc)
+-            eq_(self.context.text, original_text)
++            assert self.context.text == original_text
+ 
+     def test_context_text_is_restored_after_execute_steps_with_text(self):
+         doc = u'''
+@@ -471,10 +470,10 @@ When a step with text:
+             original_text = "<ORIGINAL_TEXT>"
+             self.context.text = original_text
+             self.context.execute_steps(doc)
+-            eq_(self.context.text, original_text)
++            assert self.context.text == original_text
+ 
+ 
+-    @raises(ValueError)
++    # OLD: @raises(ValueError)
+     def test_execute_steps_should_fail_when_called_without_feature(self):
+         doc = u"""
+ Given a passes
+@@ -482,7 +481,8 @@ Then a step passes
+ """.lstrip()
+         with patch("behave.step_registry.registry", self.step_registry):
+             self.context.feature = None
+-            self.context.execute_steps(doc)
++            with pytest.raises(ValueError):
++                self.context.execute_steps(doc)
+ 
+ 
+ def create_mock_config():
+@@ -588,11 +588,11 @@ class TestRunner(object):
+         r.setup_capture()
+         r.start_capture()
+ 
+-        eq_(sys.stdout, r.capture_controller.stdout_capture)
++        assert sys.stdout == r.capture_controller.stdout_capture
+ 
+         r.stop_capture()
+ 
+-        eq_(sys.stdout, new_stdout)
++        assert sys.stdout == new_stdout
+ 
+         sys.stdout = old_stdout
+ 
+@@ -605,11 +605,11 @@ class TestRunner(object):
+ 
+         r.start_capture()
+ 
+-        eq_(sys.stdout, old_stdout)
++        assert sys.stdout == old_stdout
+ 
+         r.stop_capture()
+ 
+-        eq_(sys.stdout, old_stdout)
++        assert sys.stdout == old_stdout
+ 
+     def test_teardown_capture_removes_log_tap(self):
+         r = runner.Runner(Mock())
+@@ -633,7 +633,7 @@ class TestRunner(object):
+         # pylint: disable=too-many-format-args
+         assert "spam" in l, '"spam" variable not set in locals (%r)' % (g, l)
+         # pylint: enable=too-many-format-args
+-        eq_(l["spam"], fn)
++        assert l["spam"] == fn
+ 
+     def test_run_returns_true_if_everything_passed(self):
+         r = runner.Runner(Mock())
+@@ -694,11 +694,11 @@ class TestRunWithPaths(unittest.TestCase):
+         self.runner.context = Mock()
+         self.runner.run_with_paths()
+ 
+-        eq_(self.run_hook.call_args_list, [
++        assert self.run_hook.call_args_list == [
+             ((), {}),
+             (("before_all", self.runner.context), {}),
+             (("after_all", self.runner.context), {}),
+-        ])
++        ]
+ 
+     @patch("behave.parser.parse_file")
+     @patch("os.path.abspath")
+@@ -724,8 +724,8 @@ class TestRunWithPaths(unittest.TestCase):
+ 
+         expected_parse_file_args = \
+             [((x.upper(),), {"language": "fritz"}) for x in feature_locations]
+-        eq_(parse_file.call_args_list, expected_parse_file_args)
+-        eq_(self.runner.features, [feature] * 3)
++        assert parse_file.call_args_list == expected_parse_file_args
++        assert self.runner.features == [feature] * 3
+ 
+ 
+ class FsMock(object):
+@@ -829,9 +829,12 @@ class TestFeatureDirectory(object):
+ 
+         # will look for a "features" directory and not find one
+         with patch("os.path", fs):
+-            assert_raises(ConfigError, r.setup_paths)
++            with pytest.raises(ConfigError):
++                r.setup_paths()
++            # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls
++        # ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
+ 
+     def test_default_path_no_features(self):
+         config = create_mock_config()
+@@ -842,7 +845,9 @@ class TestFeatureDirectory(object):
+         fs = FsMock("features/steps/")
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+-                assert_raises(ConfigError, r.setup_paths)
++                with pytest.raises(ConfigError):
++                    r.setup_paths()
++                # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+     def test_default_path(self):
+         config = create_mock_config()
+@@ -857,7 +862,7 @@ class TestFeatureDirectory(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        eq_(r.base_dir, os.path.abspath("features"))
++        assert r.base_dir == os.path.abspath("features")
+ 
+     def test_supplied_feature_file(self):
+         config = create_mock_config()
+@@ -872,10 +877,12 @@ class TestFeatureDirectory(object):
+             with patch("os.walk", fs.walk):
+                 with r.path_manager:
+                     r.setup_paths()
+-        ok_(("isdir", os.path.join(fs.base, "steps")) in fs.calls)
+-        ok_(("isfile", os.path.join(fs.base, "foo.feature")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "steps")) in fs.calls
++        assert ("isfile", os.path.join(fs.base, "foo.feature")) in fs.calls
++        # OLD: ok_(("isdir", os.path.join(fs.base, "steps")) in fs.calls)
++        # OLD: ok_(("isfile", os.path.join(fs.base, "foo.feature")) in fs.calls)
+ 
+-        eq_(r.base_dir, fs.base)
++        assert r.base_dir == fs.base
+ 
+     def test_supplied_feature_file_no_steps(self):
+         config = create_mock_config()
+@@ -888,7 +895,9 @@ class TestFeatureDirectory(object):
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+                 with r.path_manager:
+-                    assert_raises(ConfigError, r.setup_paths)
++                    with pytest.raises(ConfigError):
++                        r.setup_paths()
++                    # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+     def test_supplied_feature_directory(self):
+         config = create_mock_config()
+@@ -903,9 +912,10 @@ class TestFeatureDirectory(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        ok_(("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls
++        # OLD ok_(("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls)
+ 
+-        eq_(r.base_dir, os.path.join(fs.base, "spam"))
++        assert r.base_dir == os.path.join(fs.base, "spam")
+ 
+     def test_supplied_feature_directory_no_steps(self):
+         config = create_mock_config()
+@@ -917,9 +927,12 @@ class TestFeatureDirectory(object):
+ 
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+-                assert_raises(ConfigError, r.setup_paths)
++                with pytest.raises(ConfigError):
++                    r.setup_paths()
++                # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+-        ok_(("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls
++        # OLD: ok_(("isdir", os.path.join(fs.base, "spam", "steps")) in fs.calls)
+ 
+     def test_supplied_feature_directory_missing(self):
+         config = create_mock_config()
+@@ -931,7 +944,9 @@ class TestFeatureDirectory(object):
+ 
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+-                assert_raises(ConfigError, r.setup_paths)
++                with pytest.raises(ConfigError):
++                    r.setup_paths()
++                # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+ 
+ class TestFeatureDirectoryLayout2(object):
+@@ -955,7 +970,7 @@ class TestFeatureDirectoryLayout2(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        eq_(r.base_dir, os.path.abspath("features"))
++        assert r.base_dir == os.path.abspath("features")
+ 
+     def test_supplied_root_directory(self):
+         config = create_mock_config()
+@@ -975,8 +990,9 @@ class TestFeatureDirectoryLayout2(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
+-        eq_(r.base_dir, os.path.join(fs.base, "features"))
++        # OLD: ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls
++        assert r.base_dir == os.path.join(fs.base, "features")
+ 
+     def test_supplied_root_directory_no_steps(self):
+         config = create_mock_config()
+@@ -993,10 +1009,13 @@ class TestFeatureDirectoryLayout2(object):
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+                 with r.path_manager:
+-                    assert_raises(ConfigError, r.setup_paths)
++                    with pytest.raises(ConfigError):
++                        r.setup_paths()
++                    # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
+-        eq_(r.base_dir, None)
++        # OLD: ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls
++        assert r.base_dir is None
+ 
+ 
+     def test_supplied_feature_file(self):
+@@ -1018,9 +1037,11 @@ class TestFeatureDirectoryLayout2(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps"))  in fs.calls)
+-        ok_(("isfile", os.path.join(fs.base, "features", "group1", "foo.feature")) in fs.calls)
+-        eq_(r.base_dir, fs.join(fs.base, "features"))
++        # OLD: ok_(("isdir", os.path.join(fs.base, "features", "steps"))  in fs.calls)
++        # OLD: ok_(("isfile", os.path.join(fs.base, "features", "group1", "foo.feature")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps"))  in fs.calls
++        assert ("isfile", os.path.join(fs.base, "features", "group1", "foo.feature")) in fs.calls
++        assert r.base_dir == fs.join(fs.base, "features")
+ 
+     def test_supplied_feature_file_no_steps(self):
+         config = create_mock_config()
+@@ -1037,7 +1058,9 @@ class TestFeatureDirectoryLayout2(object):
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+                 with r.path_manager:
+-                    assert_raises(ConfigError, r.setup_paths)
++                    with pytest.raises(ConfigError):
++                        r.setup_paths()
++                    # OLD assert_raises(ConfigError, r.setup_paths)
+ 
+     def test_supplied_feature_directory(self):
+         config = create_mock_config()
+@@ -1057,8 +1080,9 @@ class TestFeatureDirectoryLayout2(object):
+                 with r.path_manager:
+                     r.setup_paths()
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
+-        eq_(r.base_dir, os.path.join(fs.base, "features"))
++        # OLD: ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls
++        assert r.base_dir == os.path.join(fs.base, "features")
+ 
+ 
+     def test_supplied_feature_directory_no_steps(self):
+@@ -1075,6 +1099,9 @@ class TestFeatureDirectoryLayout2(object):
+ 
+         with patch("os.path", fs):
+             with patch("os.walk", fs.walk):
+-                assert_raises(ConfigError, r.setup_paths)
++                with pytest.raises(ConfigError):
++                    r.setup_paths()
++                # OLD: assert_raises(ConfigError, r.setup_paths)
+ 
+-        ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        # OLD: ok_(("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls)
++        assert ("isdir", os.path.join(fs.base, "features", "steps")) in fs.calls
+diff --git a/test/test_step_registry.py b/tests/unit/test_step_registry.py
+similarity index 95%
+rename from test/test_step_registry.py
+rename to tests/unit/test_step_registry.py
+index f5b5a4d..6f85729 100644
+--- a/test/test_step_registry.py
++++ b/tests/unit/test_step_registry.py
+@@ -2,7 +2,6 @@
+ # pylint: disable=unused-wildcard-import
+ from __future__ import absolute_import, with_statement
+ from mock import Mock, patch
+-from nose.tools import *        # pylint: disable=wildcard-import
+ from six.moves import range     # pylint: disable=redefined-builtin
+ from behave import step_registry
+ 
+@@ -26,7 +25,7 @@ class TestStepRegistry(object):
+ 
+                 registry.add_step_definition(step_type.upper(), pattern, func)
+                 get_matcher.assert_called_with(func, pattern)
+-                eq_(l, [magic_object])
++                assert l == [magic_object]
+ 
+     def test_find_match_with_specific_step_type_also_searches_generic(self):
+         registry = step_registry.StepRegistry()
+@@ -80,7 +79,7 @@ class TestStepRegistry(object):
+ 
+         assert registry.find_match(step) is magic_object
+         for mock in step_defs[6:]:
+-            eq_(mock.match.call_count, 0)
++            assert mock.match.call_count == 0
+ 
+     # pylint: disable=line-too-long
+     @patch.object(step_registry.registry, 'add_step_definition')
+diff --git a/tests/unit/test_textutil.py b/tests/unit/test_textutil.py
+index e05e9ad..3ffab3c 100644
+--- a/tests/unit/test_textutil.py
++++ b/tests/unit/test_textutil.py
+@@ -9,6 +9,10 @@ import pytest
+ import codecs
+ import six
+ 
++
++pytest_version = pytest.__version__
++
++
+ # -----------------------------------------------------------------------------
+ # TEST SUPPORT:
+ # -----------------------------------------------------------------------------
+@@ -263,6 +267,7 @@ class TestObjectToTextConversion(object):
+         assert message in text2, "OOPS: text=%r" % text2
+ 
+     @requires_python2
++    @pytest.mark.skipif(pytest_version >= "5.0", reason="Fails with pytest 5.0")
+     @pytest.mark.parametrize("exception_class, message", [
+         (AssertionError, u"Ärgernis"),
+         (RuntimeError, u"Übermütig"),
+@@ -274,10 +279,15 @@ class TestObjectToTextConversion(object):
+         with pytest.raises(exception_class) as e:
+             raise exception_class(bytes_message)
+ 
+-        text2 = text(e.value)
++        # -- REQUIRES: pytest < 5.0
++        # HINT: pytest >= 5.0 needs: text(e.value)
++        # NEW:  text2 = text(e.value)   # Causes problems w/ decoding and comparison.
++        assert isinstance(e.value, Exception)
++        text2 = text(e)
+         unicode_message = bytes_message.decode(self.ENCODING)
+         expected = u"%s: %s" % (exception_class.__name__, unicode_message)
+         assert isinstance(text2, six.text_type)
++        assert unicode_message in text2
+         assert text2.endswith(expected)
+         # -- DIAGNOSTICS:
+         print(u"text2: "+ text2)
+diff --git a/tox.ini b/tox.ini
+index 392bb39..d2fbce2 100644
+--- a/tox.ini
++++ b/tox.ini
+@@ -67,17 +67,11 @@ deps=
+ install_command = pip install -U {opts} {packages}
+ changedir = {toxinidir}
+ commands=
+-    pytest {posargs:test tests}
++    pytest {posargs:tests}
+     behave --format=progress {posargs:features}
+     behave --format=progress {posargs:tools/test-features}
+     behave --format=progress {posargs:issue.features}
+-deps=
+-    pytest>=3.0
+-    pytest-html >= 1.19.0
+-    nose>=1.3
+-    mock>=2.0
+-    PyHamcrest>=1.9
+-    path.py >= 10.1
++deps= -r {toxinidir}/py.requirements/ci.tox.txt
+ setenv =
+      PYTHONPATH = {toxinidir}
+ 
+@@ -97,13 +91,12 @@ changedir = {envdir}
+ commands=
+     behave --version
+     {toxinidir}/bin/toxcmd.py copytree ../../behave4cmd0 .
+-    {toxinidir}/bin/toxcmd.py copytree ../../test .
+     {toxinidir}/bin/toxcmd.py copytree ../../tests .
+     {toxinidir}/bin/toxcmd.py copytree ../../features .
+     {toxinidir}/bin/toxcmd.py copytree ../../tools  .
+     {toxinidir}/bin/toxcmd.py copytree ../../issue.features .
+     {toxinidir}/bin/toxcmd.py copy ../../behave.ini .
+-    pytest {posargs:test tests}
++    pytest {posargs:tests}
+     behave --format=progress {posargs:features}
+     behave --format=progress {posargs:tools/test-features}
+     behave --format=progress {posargs:issue.features}
+@@ -119,18 +112,16 @@ changedir = {envdir}
+ commands=
+     behave --version
+     {toxinidir}/bin/toxcmd.py copytree ../../behave4cmd0 .
+-    {toxinidir}/bin/toxcmd.py copytree ../../test .
+     {toxinidir}/bin/toxcmd.py copytree ../../tests .
+     {toxinidir}/bin/toxcmd.py copytree ../../features .
+     {toxinidir}/bin/toxcmd.py copytree ../../tools  .
+     {toxinidir}/bin/toxcmd.py copytree ../../issue.features .
+     {toxinidir}/bin/toxcmd.py copy ../../behave.ini .
+     {toxinidir}/bin/toxcmd.py 2to3 -w -n --no-diffs behave4cmd0
+-    {toxinidir}/bin/toxcmd.py 2to3 -w -n --no-diffs test
+     {toxinidir}/bin/toxcmd.py 2to3 -w -n --no-diffs tools
+     {toxinidir}/bin/toxcmd.py 2to3 -w -n --no-diffs features
+     {toxinidir}/bin/toxcmd.py 2to3 -w -n --no-diffs issue.features
+-    pytest {posargs:test tests}
++    pytest {posargs:tests}
+     behave --format=progress {posargs:features}
+     behave --format=progress {posargs:tools/test-features}
+     behave --format=progress {posargs:issue.features}
+@@ -148,7 +139,7 @@ setenv =
+ [testenv:jy27]
+ basepython= jython
+ commands=
+-    pytest {posargs:test tests}
++    pytest {posargs:tests}
+     behave --format=progress {posargs:features}
+     behave --format=progress {posargs:tools/test-features}
+     behave --format=progress {posargs:issue.features}

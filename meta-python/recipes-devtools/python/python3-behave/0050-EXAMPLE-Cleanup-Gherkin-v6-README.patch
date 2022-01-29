@@ -1,0 +1,64 @@
+From d708c5927692580443b605c6d82e4754530b4c29 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Tue, 9 Jul 2019 08:20:25 +0200
+Subject: [PATCH] EXAMPLE: Cleanup Gherkin v6 README
+
+---
+ examples/gherkin_v6/README.rst                | 23 +++++++++++--------
+ .../features/steps/passing_steps.py           | 11 +++++++++
+ 2 files changed, 25 insertions(+), 9 deletions(-)
+ create mode 100644 examples/gherkin_v6/features/steps/passing_steps.py
+
+diff --git a/examples/gherkin_v6/README.rst b/examples/gherkin_v6/README.rst
+index 58199dd..99af1c5 100644
+--- a/examples/gherkin_v6/README.rst
++++ b/examples/gherkin_v6/README.rst
+@@ -2,17 +2,22 @@ Gherkin v6 Examples
+ =============================================================================
+ 
+ 
+-SCRATCHPAD: Problems
+------------------------------------------------------------------------------
++Provides example(s) of Gherkin v6 additions:
+ 
+-- SummaryReporter: Shows wrong counts when Rules are present::
++* Rule concept
++* New aliases for Gherkin keywords (Scenario, ScenarioOutline)
+ 
+-    ...
+-    0 features passed, 0 failed, 1 skipped XXX
+-    3 rules passed, 0 failed, 0 skipped
+-    5 scenarios passed, 0 failed, 0 skipped
+-    13 steps passed, 0 failed, 0 skipped, 0 undefined
++Rule functionality:
+ 
++* A Rule is a scenario container similar to a Feature
++* A Feature may contain many Rules
++* A Rule may not contain other Rules
++* A Rule may contain a Background (and inherits its Feature Background)
++* A Rule inherits its Feature Background if it has no Background
++* A Rule may contain many Scenarios and/or ScenarioOutlines
++* A Rule may have tags
+ 
+-- Formatters: PrettyFormatter, PlainFormatter (at least) need Rule support
++New keyword aliases:
+ 
++* "Scenario Template" for "Scenario Outline"
++* "Example" for "Scenario"
+diff --git a/examples/gherkin_v6/features/steps/passing_steps.py b/examples/gherkin_v6/features/steps/passing_steps.py
+new file mode 100644
+index 0000000..2714cb1
+--- /dev/null
++++ b/examples/gherkin_v6/features/steps/passing_steps.py
+@@ -0,0 +1,11 @@
++# -*- coding: UTF-8 -*-
++
++from behave import step
++
++@step(u'{word} step passes')
++def step_passes(ctx, word):
++    pass
++
++@step(u'{word} step fails')
++def step_fails(ctx, word):
++    assert False, "XFAIL-STEP: {0} step fails".format(word)

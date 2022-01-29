@@ -1,0 +1,269 @@
+From 4e02eeff0094ccb1e3e5a35dcae16ef5efcd78f2 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 13 Jul 2019 13:18:02 +0200
+Subject: [PATCH] Add support for runtime constraints.
+
+---
+ .bumpversion.cfg                 |  2 +-
+ behave/__init__.py               |  2 +-
+ behave/__main__.py               | 13 +++++----
+ behave/api/runtime_constraint.py | 45 ++++++++++++++++++++++++++++++++
+ behave/configuration.py          |  4 ---
+ behave/exception.py              | 40 ++++++++++++++++++++++++++++
+ behave/runner.py                 |  2 +-
+ behave/runner_util.py            | 17 ++----------
+ behave/version.py                |  2 ++
+ tests/unit/test_runner.py        |  2 +-
+ 10 files changed, 101 insertions(+), 28 deletions(-)
+ create mode 100644 behave/api/runtime_constraint.py
+ create mode 100644 behave/exception.py
+ create mode 100644 behave/version.py
+
+diff --git a/.bumpversion.cfg b/.bumpversion.cfg
+index ac913c2..a5d3d2f 100644
+--- a/.bumpversion.cfg
++++ b/.bumpversion.cfg
+@@ -1,6 +1,6 @@
+ [bumpversion]
+ current_version = 1.2.7.dev1
+-files = behave/__init__.py setup.py VERSION.txt pytest.ini .bumpversion.cfg
++files = behave/version.py setup.py VERSION.txt pytest.ini .bumpversion.cfg
+ parse = (?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<drop>\w*)
+ serialize = {major}.{minor}.{patch}{drop}
+ commit = False
+diff --git a/behave/__init__.py b/behave/__init__.py
+index 31e4e55..53a5337 100644
+--- a/behave/__init__.py
++++ b/behave/__init__.py
+@@ -20,6 +20,7 @@ from __future__ import absolute_import
+ from behave.step_registry import *      # pylint: disable=wildcard-import
+ from behave.matchers import use_step_matcher, step_matcher, register_type
+ from behave.fixture import fixture, use_fixture
++from behave.version import VERSION as __version__
+ 
+ # pylint: disable=undefined-all-variable
+ __all__ = [
+@@ -29,4 +30,3 @@ __all__ = [
+     # -- DEPRECATING:
+     "step_matcher"
+ ]
+-__version__ = "1.2.7.dev1"
+diff --git a/behave/__main__.py b/behave/__main__.py
+index c340b25..3cae36d 100644
+--- a/behave/__main__.py
++++ b/behave/__main__.py
+@@ -4,12 +4,13 @@ from __future__ import absolute_import, print_function
+ import codecs
+ import sys
+ import six
+-from behave import __version__
+-from behave.configuration import Configuration, ConfigError
++from behave.version import VERSION as BEHAVE_VERSION
++from behave.configuration import Configuration
++from behave.exception import ConstraintError, ConfigError, \
++    FileNotFoundError, InvalidFileLocationError, InvalidFilenameError
+ from behave.parser import ParserError
+ from behave.runner import Runner
+-from behave.runner_util import print_undefined_step_snippets, reset_runtime, \
+-    InvalidFileLocationError, InvalidFilenameError, FileNotFoundError
++from behave.runner_util import print_undefined_step_snippets, reset_runtime
+ from behave.textutil import compute_words_maxsize, text as _text
+ 
+ 
+@@ -62,7 +63,7 @@ def run_behave(config, runner_class=None):
+         runner_class = Runner
+ 
+     if config.version:
+-        print("behave " + __version__)
++        print("behave " + BEHAVE_VERSION)
+         return 0
+ 
+     if config.tags_help:
+@@ -110,6 +111,8 @@ def run_behave(config, runner_class=None):
+         print(u"InvalidFileLocationError: %s" % e)
+     except InvalidFilenameError as e:
+         print(u"InvalidFilenameError: %s" % e)
++    except ConstraintError as e:
++        print(u"ConstraintError: %s" % e)
+     except Exception as e:
+         # -- DIAGNOSTICS:
+         text = _text(e)
+diff --git a/behave/api/runtime_constraint.py b/behave/api/runtime_constraint.py
+new file mode 100644
+index 0000000..310e529
+--- /dev/null
++++ b/behave/api/runtime_constraint.py
+@@ -0,0 +1,45 @@
++# -*- coding: UTF-8 -*-
++"""
++Simplifies to specify runtime constraints in
++
++* features/environment.py file
++* features/steps/*.py" files
++"""
++
++from __future__ import absolute_import
++from behave.exception import ConstraintError
++
++
++# ---------------------------------------------------------------------------
++# UTILITY FUNCTIONS:
++# ---------------------------------------------------------------------------
++def require_min_python_version(minimal_version):
++    """Simplifies to specify the minimal python version that is required.
++
++    :param minimal_version: Minimum version (as string, tuple)
++    :raises: behave.exception.ConstraintError
++    """
++    import six
++    import sys
++    python_version = sys.version_info
++    if isinstance(minimal_version, six.string_types):
++        python_version = "%s.%s" % sys.version_info[:2]
++    elif not isinstance(minimal_version, tuple):
++        raise TypeError("string or tuple (was: %s)" % type(minimal_version))
++
++    if python_version < minimal_version:
++        raise ConstraintError("python >= %s expected (was: %s)" % \
++                              (minimal_version, python_version))
++
++
++def require_min_behave_version(minimal_version):
++    """Simplifies to specify the minimal behave version that is required.
++
++    :param minimal_version: Minimum version (as string, tuple)
++    :raises: behave.exception.ConstraintError
++    """
++    # -- SIMPLISTIC IMPLEMENTATION:
++    from behave.version import VERSION as behave_version
++    if behave_version < minimal_version:
++        raise ConstraintError("behave >= %s expected (was: %s)" % \
++                              (minimal_version, behave_version))
+diff --git a/behave/configuration.py b/behave/configuration.py
+index 861f89f..bd8b039 100644
+--- a/behave/configuration.py
++++ b/behave/configuration.py
+@@ -62,10 +62,6 @@ class LogLevel(object):
+         return logging.getLevelName(level)
+ 
+ 
+-class ConfigError(Exception):
+-    pass
+-
+-
+ # -----------------------------------------------------------------------------
+ # CONFIGURATION SCHEMA:
+ # -----------------------------------------------------------------------------
+diff --git a/behave/exception.py b/behave/exception.py
+new file mode 100644
+index 0000000..ba21206
+--- /dev/null
++++ b/behave/exception.py
+@@ -0,0 +1,40 @@
++# -*- coding: UTF-8 -*-
++"""
++Behave exception classes.
++
++.. versionadded:: 1.2.7
++"""
++
++
++# ---------------------------------------------------------------------------
++# EXCEPTION/ERROR CLASSES:
++# ---------------------------------------------------------------------------
++class ConstraintError(RuntimeError):
++    """Used if a constraint/precondition is not fulfilled at runtime.
++
++    .. versionadded:: 1.2.7
++    """
++
++
++class ConfigError(Exception):
++    """Used if the configuration is (partially) invalid."""
++
++
++# ---------------------------------------------------------------------------
++# EXCEPTION/ERROR CLASSES: Related to File Handling
++# ---------------------------------------------------------------------------
++class FileNotFoundError(LookupError):
++    """Used if a specified file was not found."""
++
++
++class InvalidFileLocationError(LookupError):
++    """Used if a :class:`behave.model_core.FileLocation` is invalid.
++    This occurs if the file location is no exactly correct and
++    strict checking is enabled.
++    """
++
++
++class InvalidFilenameError(ValueError):
++    """Used if a filename does not have the expected file extension, etc."""
++
++
+diff --git a/behave/runner.py b/behave/runner.py
+index f209cb0..cbedb5a 100644
+--- a/behave/runner.py
++++ b/behave/runner.py
+@@ -15,7 +15,7 @@ import six
+ 
+ from behave._types import ExceptionUtil
+ from behave.capture import CaptureController
+-from behave.configuration import ConfigError
++from behave.exception import ConfigError
+ from behave.formatter._registry import make_formatters
+ from behave.runner_util import \
+     collect_feature_locations, parse_features, \
+diff --git a/behave/runner_util.py b/behave/runner_util.py
+index 7e0807f..80b99a0 100644
+--- a/behave/runner_util.py
++++ b/behave/runner_util.py
+@@ -11,26 +11,13 @@ import re
+ import sys
+ from six import string_types
+ from behave import parser
++from behave.exception import \
++    FileNotFoundError, InvalidFileLocationError, InvalidFilenameError
+ from behave.model_core import FileLocation
+ from behave.textutil import ensure_stream_with_encoder
+ # LAZY: from behave.step_registry import setup_step_decorators
+ 
+ 
+-# -----------------------------------------------------------------------------
+-# EXCEPTIONS:
+-# -----------------------------------------------------------------------------
+-class FileNotFoundError(LookupError):
+-    pass
+-
+-
+-class InvalidFileLocationError(LookupError):
+-    pass
+-
+-
+-class InvalidFilenameError(ValueError):
+-    pass
+-
+-
+ # -----------------------------------------------------------------------------
+ # CLASS: FileLocationParser
+ # -----------------------------------------------------------------------------
+diff --git a/behave/version.py b/behave/version.py
+new file mode 100644
+index 0000000..b19cb5e
+--- /dev/null
++++ b/behave/version.py
+@@ -0,0 +1,2 @@
++# -- BEHAVE-VERSION:
++VERSION = "1.2.7.dev1"
+diff --git a/tests/unit/test_runner.py b/tests/unit/test_runner.py
+index 030dffa..f0d03cd 100644
+--- a/tests/unit/test_runner.py
++++ b/tests/unit/test_runner.py
+@@ -17,7 +17,7 @@ from behave import runner_util
+ from behave.model import Table
+ from behave.step_registry import StepRegistry
+ from behave import parser, runner
+-from behave.configuration import ConfigError
++from behave.exception import ConfigError
+ from behave.formatter.base import StreamOpener
+ 
+ 

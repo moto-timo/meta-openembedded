@@ -1,0 +1,50 @@
+From f13a3013b09c71e13a22b6289029b6991dc3ef9c Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sat, 6 Jul 2019 13:35:51 +0200
+Subject: [PATCH] tests: Fix warnings for python3.
+
+---
+ tests/issues/test_issue0336.py |  1 +
+ tests/unit/test_parser.py      | 11 +++++++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/tests/issues/test_issue0336.py b/tests/issues/test_issue0336.py
+index eb4c3fd..09201ae 100644
+--- a/tests/issues/test_issue0336.py
++++ b/tests/issues/test_issue0336.py
+@@ -52,6 +52,7 @@ AssertionError
+             assert file_line_text in text2
+ 
+     # @require_python2
++    @pytest.mark.filterwarnings("ignore:invalid escape sequence")
+     def test__problem_exists_with_problematic_encoding(self):
+         """Test ensures that problem exists with encoding=unicode-escape"""
+         # -- NOTE: Explicit use of problematic encoding
+diff --git a/tests/unit/test_parser.py b/tests/unit/test_parser.py
+index ecbb1bf..01006f9 100644
+--- a/tests/unit/test_parser.py
++++ b/tests/unit/test_parser.py
+@@ -564,16 +564,19 @@ Feature: Stuff
+             ('then', 'Then', 'stuff is in buckets', None, None),
+         ])
+ 
++    @pytest.mark.filterwarnings("ignore:invalid escape sequence")
+     def test_parses_feature_with_table_and_escaped_pipe_in_cell_values(self):
++        # -- HINT py37: DeprecationWarning: invalid escape sequence '\|'
++        # USE: Double escaped-backslashes.
+         doc = u'''
+ Feature:
+   Scenario:
+     Given we have special cell values:
+       | name   | value    |
+-      | alice  | one\|two |
+-      | bob    |\|one     |
+-      | charly |     one\||
+-      | doro   | one\|two\|three\|four |
++      | alice  | one\\|two |
++      | bob    |\\|one     |
++      | charly |     one\\||
++      | doro   | one\\|two\\|three\\|four |
+ '''.lstrip()
+         feature = parser.parse_feature(doc)
+         assert len(feature.scenarios) == 1

@@ -1,0 +1,24 @@
+From 1a2f89a3dad9c0aaacc341fc786cfed67f09e1b2 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Sun, 9 Jun 2019 14:06:14 +0200
+Subject: [PATCH] UPDATE: Add #755 info
+
+---
+ CHANGES.rst | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/CHANGES.rst b/CHANGES.rst
+index d6e96af..a91e22a 100644
+--- a/CHANGES.rst
++++ b/CHANGES.rst
+@@ -30,6 +30,10 @@ ENHANCEMENTS:
+ * issue #675: Feature files cannot be found within symlink directories (provided by: smadness, pull #680)
+ 
+ 
++PARTIALLY FIXED:
++
++* issue #755: Failures with Python 3.8 (submitted by: hroncok)
++
+ FIXED:
+ 
+ * issue #725: Scenario Outline description lines seem to be ignored (submitted by: nizwiz)

@@ -1,0 +1,60 @@
+From ad7c14f04fe0a842cb3ee919751ffd6ec1a7c394 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 13 Mar 2019 08:41:37 +0100
+Subject: [PATCH] SummaryReporter.print_summary: Simplify if Rules are used.
+
+---
+ behave/reporter/summary.py          | 7 ++++---
+ tests/unit/reporter/test_summary.py | 6 +++---
+ 2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/behave/reporter/summary.py b/behave/reporter/summary.py
+index 2ccdc8f..09285ea 100644
+--- a/behave/reporter/summary.py
++++ b/behave/reporter/summary.py
+@@ -179,11 +179,12 @@ class SummaryReporter(Reporter):
+             stream = self.stream
+ 
+         self.compute_summary_sums()
++        has_rules = (self.rule_summary["all"] > 0)
++
+         stream.write(format_summary("feature", self.feature_summary))
+-        rules_summary = format_summary("rule", self.rule_summary)
+-        if self.show_rules and not rules_summary.strip().startswith("0"):
++        if self.show_rules and has_rules:
+             # -- HINT: Show only rules, if any exists.
+-            self.stream.write(rules_summary)
++            self.stream.write(format_summary("rule", self.rule_summary))
+         stream.write(format_summary("scenario", self.scenario_summary))
+         stream.write(format_summary("step", self.step_summary))
+ 
+diff --git a/tests/unit/reporter/test_summary.py b/tests/unit/reporter/test_summary.py
+index 97adbb5..d4e85b5 100644
+--- a/tests/unit/reporter/test_summary.py
++++ b/tests/unit/reporter/test_summary.py
+@@ -164,7 +164,7 @@ class TestSummaryReporter(object):
+             Status.untested.name: 1,
+         }
+ 
+-        scenario_index = 2
++        scenario_index = 1  # -- HINT: Index for scenarios if no Rules are used.
+         expected_parts = ("scenario", expected)
+         assert format_summary.call_args_list[scenario_index][0] == expected_parts
+ 
+@@ -209,7 +209,7 @@ class TestSummaryReporter(object):
+             Status.skipped.name: 2,
+             Status.untested.name: 0,
+         }
+-        scenario_index = 2
++        scenario_index = 1  # -- HINT: Index for scenarios if no Rules are used.
+         expected_parts = ("scenario", expected)
+         assert format_summary.call_args_list[scenario_index][0] == expected_parts
+ 
+@@ -252,6 +252,6 @@ class TestSummaryReporter(object):
+             Status.undefined.name: 1,
+         }
+ 
+-        step_index = 3
++        step_index = 2  # HINT: Index for steps if not rules are used.
+         expected_parts = ("step", expected)
+         assert format_summary.call_args_list[step_index][0] == expected_parts

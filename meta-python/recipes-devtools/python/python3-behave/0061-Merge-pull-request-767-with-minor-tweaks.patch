@@ -1,0 +1,60 @@
+From 062441a71ab0a4de19156d0cb281e4ef7d9d2c2b Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 7 Aug 2019 23:14:59 +0200
+Subject: [PATCH] Merge pull-request #767 with minor tweaks. FIX:
+ use_fixture_by_tag didn't return the actual fixture in all cases.
+
+---
+ CHANGES.rst                    |  1 +
+ tests/issues/test_issue0767.py | 17 +++++++++--------
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/CHANGES.rst b/CHANGES.rst
+index 15a4ef9..7a9163f 100644
+--- a/CHANGES.rst
++++ b/CHANGES.rst
+@@ -43,6 +43,7 @@ FIXED:
+ 
+ MINOR:
+ 
++* pull  #767: FIX: use_fixture_by_tag didn't return the actual fixture in all cases (provided by: jgentil)
+ * pull  #751: gherkin: Adding Rule keyword translation in portuguese and spanish to gherkin-languages.json (provided by: dunossauro)
+ * pull  #660: Fix minor typos (provided by: rrueth)
+ * pull  #655: Use pytest instead of py.test per upstream recommendation (provided by: scop)
+diff --git a/tests/issues/test_issue0767.py b/tests/issues/test_issue0767.py
+index 1de3589..401dbd0 100644
+--- a/tests/issues/test_issue0767.py
++++ b/tests/issues/test_issue0767.py
+@@ -15,11 +15,12 @@ This seems to be an oversight.
+ """
+ 
+ from mock import Mock
++from behave.fixture import fixture, use_fixture_by_tag
++from behave.runner import Context
++
+ 
+ def test_issue_767_use_feature_by_tag_has_no_return():
+     """Verifies that issue #767 is fixed."""
+-    from behave.fixture import fixture, use_fixture_by_tag
+-    from behave.runner import Context
+ 
+     @fixture(name='fixture.foo')
+     def foo_fixture(context, *args, **kwargs):
+@@ -36,11 +37,11 @@ def test_issue_767_use_feature_by_tag_has_no_return():
+     }
+ 
+     context = Context(runner=Mock())
+-    f1 = use_fixture_by_tag('fixture.foo', context, fixture_registry1)
+-    assert f1 == 'foo'
+-    assert context.foo is f1
++    fixture1 = use_fixture_by_tag("fixture.foo", context, fixture_registry1)
++    assert fixture1 == "foo"
++    assert context.foo is fixture1
+ 
+     context = Context(runner=Mock())
+-    f2 = use_fixture_by_tag('fixture.foo', context, fixture_registry2)
+-    assert f2 == 'foo'
+-    assert context.foo is f2
++    fixture2 = use_fixture_by_tag("fixture.foo", context, fixture_registry2)
++    assert fixture2 == "foo"
++    assert context.foo is fixture2

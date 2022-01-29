@@ -1,0 +1,31 @@
+From deaa15cf73b93f4cbf0789f24583ef3790707099 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 4 Nov 2020 10:54:02 +0100
+Subject: [PATCH] renovate: Extend pip requirements file list.
+
+---
+ .github/renovate.json | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/.github/renovate.json b/.github/renovate.json
+index 3399a00..9b72f76 100644
+--- a/.github/renovate.json
++++ b/.github/renovate.json
+@@ -4,10 +4,15 @@
+   ],
+   "pip_requirements": {
+     "fileMatch": [
+-        "py.requirements/all.txt",
+         "py.requirements/*.txt",
++        "py.requirements/all.txt",
++        "py.requirements/basic.txt",
++        "py.requirements/develop.txt",
++        "py.requirements/testing.txt",
++        "py.requirements/ci.tox.txt",
++        "py.requirements/ci.travis.txt",
+         "tasks/py.requirements.txt",
+         "issue.features/py.requirements.txt"
+     ]
+-}
++  }
+ }

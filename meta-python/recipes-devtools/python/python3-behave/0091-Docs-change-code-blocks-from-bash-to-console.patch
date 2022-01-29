@@ -1,0 +1,36 @@
+From a094dee0d6f3cc8aafaeb18758d884719a8f23e0 Mon Sep 17 00:00:00 2001
+From: Daniel Lemm <61800298+ffe4@users.noreply.github.com>
+Date: Fri, 26 Jun 2020 11:27:10 +0200
+Subject: [PATCH] Docs: change code blocks from bash to console
+
+---
+ README.rst              | 2 +-
+ docs/practical_tips.rst | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/README.rst b/README.rst
+index 4a905ab..22b0352 100644
+--- a/README.rst
++++ b/README.rst
+@@ -76,7 +76,7 @@ In that directory create a file called "example_steps.py" containing:
+ 
+ Run behave:
+ 
+-.. code-block:: bash
++.. code-block:: console
+ 
+     $ behave
+     Feature: Showing off behave # features/example.feature:2
+diff --git a/docs/practical_tips.rst b/docs/practical_tips.rst
+index b70569f..75bc736 100644
+--- a/docs/practical_tips.rst
++++ b/docs/practical_tips.rst
+@@ -30,7 +30,7 @@ For example, if you want to use the feature files in the same directory for
+ testing the model layer and the UI layer, this can be done by using the
+ ``--stage`` option, like with:
+ 
+-.. code-block:: bash
++.. code-block:: console
+ 
+     $ behave --stage=model features/
+     $ behave --stage=ui    features/  # NOTE: Normally used on a subset of features.

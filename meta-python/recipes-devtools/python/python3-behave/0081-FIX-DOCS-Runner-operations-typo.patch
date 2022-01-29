@@ -1,0 +1,22 @@
+From ce6559e0d9042b4a3b6e513daf260c56aef8d8fe Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 13 Apr 2020 10:38:17 +0200
+Subject: [PATCH] FIX DOCS: Runner operations typo.
+
+---
+ docs/api.rst | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docs/api.rst b/docs/api.rst
+index 39fa755..4763ad6 100644
+--- a/docs/api.rst
++++ b/docs/api.rst
+@@ -367,7 +367,7 @@ this is the order in which that code is invoked (if they exist.)
+         for tag in feature.tags: call-optional-hook before_tag(ctx, tag)
+         call-optional-hook before_feature(ctx, feature)
+         for run_item in feature.run_items:  # CAN BE: Rule, Scenario, ScenarioOutline
+-            execute_run_item(ctx, run_item)
++            execute_run_item(run_item, ctx)
+         call-optional-hook after_feature(ctx, feature)
+         for tag in feature.tags: call-optional-hook after_tag(ctx, tag)
+     call-optional-hook after_all(ctx)

@@ -1,0 +1,83 @@
+From 460b65fadba73f5edd0d18406eb81e6e29cbd6a8 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Wed, 7 Aug 2019 23:55:05 +0200
+Subject: [PATCH] CHECK: Issue #766 -- PrettyFormatter: UnicodeError
+
+---
+ issue.features/issue0766.feature        | 47 +++++++++++++++++++++++++
+ issue.features/steps/issue0766_steps.py | 12 +++++++
+ 2 files changed, 59 insertions(+)
+ create mode 100644 issue.features/issue0766.feature
+ create mode 100644 issue.features/steps/issue0766_steps.py
+
+diff --git a/issue.features/issue0766.feature b/issue.features/issue0766.feature
+new file mode 100644
+index 0000000..94d44d8
+--- /dev/null
++++ b/issue.features/issue0766.feature
+@@ -0,0 +1,47 @@
++@issue
++@not_reproducible
++Feature: Issue #766 -- UnicodeEncodeError in PrettyFormatter
++
++  Explore the described problem.
++
++  Scenario Outline:
++    Given a step with name="<name>"
++
++    Examples:
++      | name | value | comment |
++      | 😄   | 123   | Use emoticon (smiley) in a table |
++
++  Scenario:
++    Given a step with table data:
++      | name | value | comment |
++      | 😄   | 123   | Use emoticon (smiley) in a table |
++
++  Scenario: Explore problem by using the pretty formatter
++    Given a new working directory
++    And a file named "features/syndrome_766.feature" with:
++      """
++      Feature: Alice
++        Scenario Outline:
++          Given a step with name="<name>"
++
++          Examples:
++            | name | value | comment |
++            | 😄   | 123   | Use emoticon (smiley) in a table |
++      """
++    And a file named "features/steps/issue766_steps.py" with:
++      """
++      from behave import given
++
++      @given(u'a step with name="{name}"')
++      def step_with_table_data(ctx, name):
++          pass
++      """
++    When I run "behave -f pretty features/syndrome_766.feature"
++    Then it should pass with:
++      """
++      1 feature passed, 0 failed, 0 skipped
++      1 scenario passed, 0 failed, 0 skipped
++      1 step passed, 0 failed, 0 skipped, 0 undefine
++      """
++    And the command output should not contain "UnicodeEncodeError"
++    And the command output should not contain "Traceback"
+diff --git a/issue.features/steps/issue0766_steps.py b/issue.features/steps/issue0766_steps.py
+new file mode 100644
+index 0000000..33ed317
+--- /dev/null
++++ b/issue.features/steps/issue0766_steps.py
+@@ -0,0 +1,12 @@
++# -*- coding: UTF-8 -*-
++
++from __future__ import print_function
++from behave import given
++
++@given(u'a step with table data')
++def step_with_table_data(ctx):
++    assert ctx.table is not None, "REQUIRE: step.table"
++
++@given(u'a step with name="{name}"')
++def step_with_table_data(ctx, name):
++    print(u"name: {}".format(name))

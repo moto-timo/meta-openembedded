@@ -1,0 +1,27 @@
+From db60074f75d1793c7fc61a4df54260f9b62cf575 Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 1 Jul 2019 22:11:13 +0200
+Subject: [PATCH] examples/gherkin_v6: Tweak ScenarioOutline Examples titles.
+
+---
+ examples/gherkin_v6/features/rule_2.feature | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/examples/gherkin_v6/features/rule_2.feature b/examples/gherkin_v6/features/rule_2.feature
+index a802e19..8b8bb04 100644
+--- a/examples/gherkin_v6/features/rule_2.feature
++++ b/examples/gherkin_v6/features/rule_2.feature
+@@ -36,7 +36,12 @@ Feature: Gherkin v6 Example -- with Rules
+     Scenario Template: R3.Scenario
+       Given a person named "<name>"
+ 
+-      Examples:
++      Examples: R3.E1
+         | name  |
+         | Alice |
+         | Bob   |
++
++      Examples: R3.E2
++        | name  |
++        | Charly |
++        | Doro   |

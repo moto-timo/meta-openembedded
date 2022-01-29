@@ -1,0 +1,22 @@
+From 317d4fa9f770d62b6caa802402cf1e0b52118b64 Mon Sep 17 00:00:00 2001
+From: Peter Bittner <django@bittner.it>
+Date: Tue, 15 Dec 2020 12:44:52 +0100
+Subject: [PATCH] Use console highlighting for `pip install` (docs)
+
+---
+ docs/contributing.rst | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/docs/contributing.rst b/docs/contributing.rst
+index 78f36bd..f3deb87 100644
+--- a/docs/contributing.rst
++++ b/docs/contributing.rst
+@@ -71,6 +71,8 @@ or, alternatively, using Tox:
+     Building the docs requires Sphinx and DocUtils. If your build fails
+     because those are missing, run:
+ 
++    .. code-block:: console
++
+         python3 -m pip install -r py.requirements/docs.txt
+ 
+ Once the docs are built successfully, ``sphinx`` will tell you where it

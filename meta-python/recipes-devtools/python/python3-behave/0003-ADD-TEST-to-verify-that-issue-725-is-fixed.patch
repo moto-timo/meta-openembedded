@@ -1,0 +1,60 @@
+From f4172387a771c9f7b5be837e045fa6704129f3ee Mon Sep 17 00:00:00 2001
+From: jenisys <jenisys@users.noreply.github.com>
+Date: Mon, 11 Mar 2019 23:08:00 +0100
+Subject: [PATCH] ADD TEST to verify that issue #725 is fixed.
+
+---
+ tests/issues/test_issue0725.py | 44 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
+ create mode 100644 tests/issues/test_issue0725.py
+
+diff --git a/tests/issues/test_issue0725.py b/tests/issues/test_issue0725.py
+new file mode 100644
+index 0000000..7479f59
+--- /dev/null
++++ b/tests/issues/test_issue0725.py
+@@ -0,0 +1,44 @@
++# -*- coding: UTF-8 -*-
++"""
++https://github.com/behave/behave/issues/725
++
++ANALYSIS:
++----------
++
++ScenarioOutlineBuilder did not copy ScenarioOutline.description
++to the Scenarios that were created from the ScenarioOutline.
++"""
++
++from __future__ import absolute_import, print_function
++from behave.parser import parse_feature
++
++
++def test_issue():
++    """Verifies that issue #725 is fixed."""
++    text = u'''
++Feature: ScenarioOutline with description
++
++  Scenario Outline: SO_1
++    Description line 1 for ScenarioOutline.
++    Description line 2 for ScenarioOutline.
++
++    Given a step with "<name>"
++    
++    Examples:
++      | name  |
++      | Alice |
++      | Bob   |
++'''.lstrip()
++    feature = parse_feature(text)
++    assert len(feature.scenarios) == 1
++    scenario_outline_1 = feature.scenarios[0]
++    assert len(scenario_outline_1.scenarios) == 2
++    # -- HINT: Last line triggers building of the Scenarios from ScenarioOutline.
++
++    expected_description = [
++        "Description line 1 for ScenarioOutline.",
++        "Description line 2 for ScenarioOutline.",
++    ]
++    assert scenario_outline_1.description == expected_description
++    assert scenario_outline_1.scenarios[0].description == expected_description
++    assert scenario_outline_1.scenarios[1].description == expected_description
