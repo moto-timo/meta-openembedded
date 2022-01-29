@@ -4,12 +4,10 @@ SECTION = "libs"
 LICENSE = "LGPLv2.1+"
 LIC_FILES_CHKSUM = "file://COPYING.txt;md5=7c13b3376cea0ce68d2d2da0a1b3a72c"
 
-SRCREV = "565bf68eccfdbbf22cf5cb6d792e23de564665c7"
-PV = "0.21+git${SRCPV}"
+SRCREV = "92d6a35f3d8d721cda7d6fe664b435311dd368b4"
+PV = "0.23"
 
-SRC_URI = "git://github.com/analogdevicesinc/libiio.git;protocol=https;branch=master \
-           file://0001-python-Do-not-verify-whether-libiio-is-installed-whe.patch \
-"
+SRC_URI = "git://github.com/analogdevicesinc/libiio.git;protocol=https;branch=master"
 UPSTREAM_CHECK_GITTAGREGEX = "v(?P<pver>\d+(\.\d+)+)"
 
 S = "${WORKDIR}/git"
