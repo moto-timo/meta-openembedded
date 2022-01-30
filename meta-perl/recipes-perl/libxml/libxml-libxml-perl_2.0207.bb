@@ -6,32 +6,41 @@ The module is split into several packages which are not described in this \
 section; unless stated otherwise, you only need to use XML::LibXML; in \
 your programs."
 
-HOMEPAGE = "http://search.cpan.org/dist/XML-LibXML-1.99/"
+HOMEPAGE = "https://metacpan.org/dist/XML-LibXML/view/LibXML.pod"
 SECTION = "libs"
 LICENSE = "Artistic-1.0|GPLv1+"
-DEPENDS += "libxml2 \
+DEPENDS += "\
+	libalien-build-perl-native \
+	libalien-libxml2-perl-native \
         libxml-sax-perl-native \
+        libxml2 \
         zlib \
 "
 RDEPENDS:${PN} += "\
     libxml2 \
+    libxml-namespacesupport-perl \
     libxml-sax-perl \
     libxml-sax-base-perl \
-    perl-module-encode \
+    perl-module-carp \
     perl-module-data-dumper \
+    perl-module-dynaloader \
+    perl-module-encode \
+    perl-module-encode-encoding \
+    perl-module-exporter \
+    perl-module-io-handle \
+    perl-module-scalar-util \
+    perl-module-symbol \
+    perl-module-tie-hash \
     zlib \
 "
-
-SRC_URI = "http://search.cpan.org/CPAN/authors/id/S/SH/SHLOMIF/XML-LibXML-${PV}.tar.gz;name=libxml \
-    file://disable-libxml2-check.patch \
-    file://fix-CATALOG-conditional-compile.patch \
-    file://using-DOCB-conditional.patch \
-"
+SRC_URI = "${CPAN_MIRROR}/authors/id/S/SH/SHLOMIF/XML-LibXML-${PV}.tar.gz;name=libxml \
+           file://fix-CATALOG-conditional-compile.patch \
+           file://using-DOCB-conditional.patch \
+           "
 LIC_FILES_CHKSUM = "file://debian/copyright;md5=64eda1bc135f0ece1d1187f2a8ac82c1 \
     file://LICENSE;md5=97871bde150daeb5e61ad95137ff2446 \
 "
-SRC_URI[libxml.md5sum] = "dce687dd8b7e82d1c359fd74b1852f64"
-SRC_URI[libxml.sha256sum] = "f0bca4d0c2da35d879fee4cd13f352014186cedab27ab5e191f39b5d7d4f46cf"
+SRC_URI[libxml.sha256sum] = "903436c9859875bef5593243aae85ced329ad0fb4b57bbf45975e32547c50c15"
 
 S = "${WORKDIR}/XML-LibXML-${PV}"
 
@@ -50,9 +59,14 @@ RDEPENDS:${PN}-ptest += " \
     liburi-perl \
     perl-module-encode-byte \
     perl-module-encode-unicode \
+    perl-module-io-file \
     perl-module-locale \
+    perl-module-list-util \
     perl-module-perlio-scalar \
     perl-module-test-more \
+    perl-module-test2-api \
+    perl-module-test2-api-instance \
+    perl-module-test2-util \
 "
 
 do_install:prepend() {
