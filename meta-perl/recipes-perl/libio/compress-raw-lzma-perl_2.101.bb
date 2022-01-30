@@ -12,7 +12,6 @@ file://${COMMON_LICENSE_DIR}/GPL-1.0-only;md5=e9e36a9de734199567a4d769498f743d"
 
 SRC_URI = "https://cpan.metacpan.org/authors/id/P/PM/PMQS/Compress-Raw-Lzma-2.096.tar.gz"
 
-SRC_URI[md5sum] = "b5079bb43712fcd1e74b80777fa376ed"
 SRC_URI[sha256sum] = "f3afb267b1303b0f125976e9e4a70c6a4a205e35e7c99b408911f5e5c6578217"
 
 DEPENDS += "xz"
