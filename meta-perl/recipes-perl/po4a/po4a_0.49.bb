@@ -9,7 +9,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=a96fc9b4cc36d80659e694ea109f0325"
 SRC_URI = "git://github.com/mquinson/po4a.git;protocol=https;branch=master"
 
 # v0.49
-SRCREV = "4dda9889f8363a0032049988ed6a01ade435fcdd"
+SRCREV = "79ed87a577a543538fe39c7b60079981f5997072"
 
 S = "${WORKDIR}/git"
 
