@@ -12,7 +12,6 @@ file://${COMMON_LICENSE_DIR}/GPL-1.0-only;md5=e9e36a9de734199567a4d769498f743d"
 
 SRC_URI = "https://cpan.metacpan.org/authors/id/P/PM/PMQS/Compress-Raw-Zlib-2.096.tar.gz"
 
-SRC_URI[md5sum] = "4144ecdd901231553447998cf8035e4a"
 SRC_URI[sha256sum] = "cd4cba20c159a7748b8bc91278524a7da70573d9531fde62298609a5f1c65912"
 
 DEPENDS += "zlib"
