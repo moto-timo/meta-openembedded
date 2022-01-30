@@ -12,7 +12,6 @@ file://${COMMON_LICENSE_DIR}/GPL-1.0-only;md5=e9e36a9de734199567a4d769498f743d"
 
 SRC_URI = "https://cpan.metacpan.org/authors/id/P/PM/PMQS/IO-Compress-2.096.tar.gz"
 
-SRC_URI[md5sum] = "18ad197cad5ca87bc3a7d2538998e017"
 SRC_URI[sha256sum] = "9d219fd5df4b490b5d2f847921e3cb1c3392758fa0bae9b05a8992b3620ba572"
 RDEPENDS:${PN} += "compress-raw-bzip2-perl"
 RDEPENDS:${PN} += "compress-raw-zlib-perl"
