@@ -31,6 +31,8 @@ RDEPENDS:packagegroup-meta-python3 = "\
     python3-argcomplete \
     python3-argexec \
     python3-argh \
+    python3-argon2-cffi \
+    python3-argon2-cffi-bindings \
     python3-arpeggio \
     python3-asciitree \
     python3-asn1crypto \
