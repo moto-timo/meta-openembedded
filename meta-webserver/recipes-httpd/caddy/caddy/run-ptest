@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# Run the precompiled Go test binaries and translate their output
+# into the PASS:/FAIL: format expected by ptest-runner.
+
+cd "$(dirname "$0")/tests" || exit 1
+
+rc=0
+
+for t in *.test; do
+    [ -e "$t" ] || continue
+    pkg=$(echo "$t" | sed 's/\.test$//')
+    ./"$t" -test.v 2>&1 | awk -v pkg="$pkg" '
+        /^--- PASS: / { sub(/^--- PASS: /, ""); print "PASS: " pkg "/" $1; next }
+        /^--- FAIL: / { sub(/^--- FAIL: /, ""); print "FAIL: " pkg "/" $1; next }
+        /^--- SKIP: / { sub(/^--- SKIP: /, ""); print "SKIP: " pkg "/" $1; next }
+        { print }
+    '
+    [ "${PIPESTATUS:-$?}" -ne 0 ] && rc=1
+done
+
+exit $rc
